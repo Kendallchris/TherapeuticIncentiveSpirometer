@@ -11,6 +11,7 @@ const int ledPin = 13;           // Pin for the onboard LED
 const int sensorPin = 14;        // Analog pin A0 (Pin 14) connected to the TCRT5000 sensor's collector
 const int buttonPin = 2;         // GPIO2 for measurement mode button GREEN
 const int wakeUpButtonPin = 3;   // GPIO3 for wake-up button RED
+const int screenBacklightPin = 4; 
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
@@ -51,6 +52,10 @@ void setup() {
     pinMode(ledPin, OUTPUT);            // Set LED pin as output for user control
     pinMode(buttonPin, INPUT);          // Set measurement button pin as input
     pinMode(wakeUpButtonPin, INPUT);    // Set wake-up button pin as input
+    pinMode(screenBacklightPin, OUTPUT);      // Set backlight control pin as output
+
+    // Turn on the backlight at startup
+    digitalWrite(screenBacklightPin, HIGH);
 
     // Initialize the display
     tft.init();                         // Initialize the display
@@ -190,6 +195,7 @@ void enterSleepMode() {
     tft.writecommand(TFT_DISPOFF);      // Turn off display
     tft.writecommand(TFT_SLPIN);        // Put display into sleep mode
     digitalWrite(ledPin, LOW);          // Turn off onboard LED
+    digitalWrite(screenBacklightPin, LOW); // Turn off screen backlighting
     isAsleep = true;                    // Set sleep mode flag
 }
 
@@ -234,6 +240,7 @@ void wakeUp() {
     Serial.println("Waking up from sleep mode...");
     tft.writecommand(TFT_DISPON);       // Turn on display
     tft.writecommand(TFT_SLPOUT);       // Wake display from sleep
+    digitalWrite(screenBacklightPin, HIGH); // Turn backlighting back on
     isAsleep = false;                   // Clear sleep mode flag
     lastActivityTime = millis();        // Reset activity timer
     homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());  // Return to home screen with current and previous measurements
