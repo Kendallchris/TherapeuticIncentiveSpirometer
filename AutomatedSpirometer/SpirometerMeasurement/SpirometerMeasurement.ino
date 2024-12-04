@@ -17,7 +17,7 @@ const int screenBacklightPin = 4;
 #define ADXL345_I2C_ADDR 0x53
 
 // Angle threshold for tilt detection (in degrees)
-const float tiltAngleThreshold = 45.0;
+const float tiltAngleThreshold = 30.0;
 
 // Create instances
 TFT_eSPI tft = TFT_eSPI();
@@ -36,7 +36,7 @@ bool awaitingObjectDetection = false; // Tracks if waiting for object detection 
 // Timer variables
 unsigned long lastActivityTime = 0;         // Tracks the last time there was activity
 unsigned long lastResetTime = 0;            // Tracks the last hourly reset time
-const unsigned long sleepDelay = 60000;     // 10 seconds of inactivity before sleep
+const unsigned long sleepDelay = 10000;     // 10 seconds of inactivity before sleep
 const unsigned long hourDuration = 3600000; // 1 hour in milliseconds
 const unsigned long detectionDelay = 5000;  // 5-second buffer time before checking for "No Object Detected"
 unsigned long measurementStartTime = 0;     // Track when measurement mode starts
@@ -238,12 +238,31 @@ bool detectTilt() {
 
 void wakeUp() {
     Serial.println("Waking up from sleep mode...");
-    tft.writecommand(TFT_DISPON);       // Turn on display
-    tft.writecommand(TFT_SLPOUT);       // Wake display from sleep
-    digitalWrite(screenBacklightPin, HIGH); // Turn backlighting back on
-    isAsleep = false;                   // Clear sleep mode flag
-    lastActivityTime = millis();        // Reset activity timer
-    homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());  // Return to home screen with current and previous measurements
+
+    // Turn on the backlight first
+    digitalWrite(screenBacklightPin, HIGH);
+    delay(50);  // Allow time for backlight power to stabilize
+
+    // Wake up the display
+    tft.writecommand(TFT_SLPOUT);  // Exit sleep mode
+    delay(150);                   // Delay to ensure display is fully awake
+
+    tft.writecommand(TFT_DISPON); // Turn on display
+    delay(50);                    // Additional delay for stability
+
+    // Clear the screen to prevent residual artifacts
+    tft.fillScreen(TFT_BLACK);
+    delay(10);
+
+    // Log wake-up success
+    Serial.println("Display wake-up complete. Restoring home screen...");
+
+    // Reset state variables
+    isAsleep = false;
+    lastActivityTime = millis();
+
+    // Display the home screen
+    homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
 }
 
 void showMeasurementScreen() {
