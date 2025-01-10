@@ -1,49 +1,58 @@
 #include "MeasurementScreen.h"
+#include <lvgl.h>
 
-MeasurementScreen::MeasurementScreen(TFT_eSPI &display) : tft(display) {
-    // Initialization if needed
+MeasurementScreen::MeasurementScreen(TFT_eSPI &display) : tft(display), countdown_label(nullptr) {
+    // Constructor initialization
 }
 
 void MeasurementScreen::showWaitingWithCountdown() {
-    unsigned long startTime = millis();
-    int countdownDuration = 10000; // 10 seconds
-    int secondsLeft = 10;
+    // Create and display a new screen for measurement
+    lv_obj_t *screen = lv_obj_create(NULL);
+    lv_scr_load(screen);
 
-    // Draw static elements once
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setTextSize(2);
-    tft.setCursor(10, 10);
-    tft.println("Waiting for object...");
-    tft.setCursor(10, 40);
-    tft.println("Press green button to cancel");
+    lv_obj_t *waiting_label = lv_label_create(screen);
+    lv_label_set_text(waiting_label, "Waiting for object...\nPress green button to cancel");
+    lv_obj_align(waiting_label, LV_ALIGN_TOP_MID, 0, 20);
 
-    while (millis() - startTime < countdownDuration) {
-        int newSecondsLeft = 10 - (millis() - startTime) / 1000;
-        if (newSecondsLeft != secondsLeft) {
-            secondsLeft = newSecondsLeft;
-            tft.fillRect(10, 70, 220, 30, TFT_BLACK);  // Clear just the countdown area
-            tft.setCursor(10, 70);
-            tft.print("Beginning measurement in ");
-            tft.print(secondsLeft);
-            tft.print(" seconds");
+    countdown_label = lv_label_create(screen);
+    lv_label_set_text(countdown_label, "Beginning measurement...");
+    lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, 0);
+
+    // Start countdown using millis()
+    countdown_start = millis();
+}
+
+void MeasurementScreen::updateCountdown() {
+    if (countdown_label) {
+        int elapsed = (millis() - countdown_start) / 1000;
+        int remaining = countdown_duration - elapsed;
+
+        if (remaining > 0) {
+            lv_label_set_text_fmt(countdown_label, "Beginning measurement in %d seconds", remaining);
+        } else {
+            lv_label_set_text(countdown_label, "Measurement started!");
+            countdown_label = nullptr; // Stop further updates
         }
+        lv_timer_handler(); // Ensure screen updates
     }
 }
 
 void MeasurementScreen::showSuccess() {
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.setTextSize(2);
-    tft.setCursor(10, 10);
-    tft.println("SUCCESS!");
-    delay(2000);  // Hold the message for 2 seconds
+    lv_obj_t *screen = lv_obj_create(NULL);
+    lv_scr_load(screen);
+
+    lv_obj_t *success_label = lv_label_create(screen);
+    lv_label_set_text(success_label, "SUCCESS!");
+    lv_obj_align(success_label, LV_ALIGN_CENTER, 0, 0);
+
+    delay(2000); // Show success message for 2 seconds
 }
 
 void MeasurementScreen::showNoObject() {
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.setTextSize(2);
-    tft.setCursor(10, 10);
-    tft.println("No object detected yet.");
+    lv_obj_t *screen = lv_obj_create(NULL);
+    lv_scr_load(screen);
+
+    lv_obj_t *no_object_label = lv_label_create(screen);
+    lv_label_set_text(no_object_label, "No object detected.");
+    lv_obj_align(no_object_label, LV_ALIGN_CENTER, 0, 0);
 }

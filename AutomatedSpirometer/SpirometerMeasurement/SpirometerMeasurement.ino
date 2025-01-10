@@ -1,6 +1,7 @@
 // TODO: when taking measurement and "Waiting for object, press green button to cancel" screen is up, the sensor is not sensing for an object (this is potentially okay)
 
-#include <TFT_eSPI.h>     // Include the TFT_eSPI library
+#include <TFT_eSPI.h>  // Include the TFT_eSPI library
+#include <lvgl.h>
 #include <Wire.h>         // Include Wire library for I2C communication
 #include "HomeScreen.h"   // Include HomeScreen for managing the UI
 #include "DataLogger.h"   // Include DataLogger for managing measurements
@@ -21,8 +22,11 @@ const int screenBacklightPin = 4;
 // Angle threshold for tilt detection (in degrees)
 const float tiltAngleThreshold = 30.0;
 
-// Create instances
 TFT_eSPI tft = TFT_eSPI();
+lv_disp_draw_buf_t draw_buf;
+lv_color_t buf[TFT_WIDTH * 10];
+
+// Create instances
 HomeScreen homeScreen(tft);
 MeasurementScreen measurementScreen(tft);
 DataLogger dataLogger;
@@ -40,7 +44,7 @@ bool awaitingObjectDetection = false;  // Tracks if waiting for object detection
 // Timer variables
 unsigned long lastActivityTime = 0;              // Tracks the last time there was activity
 unsigned long lastResetTime = 0;                 // Tracks the last hourly reset time
-const unsigned long sleepDelay = 10000;          // 10 seconds of inactivity before sleep
+const unsigned long sleepDelay = 60000;          // 60 seconds of inactivity before sleep
 const unsigned long hourDuration = 3600000;      // 1 hour in milliseconds
 const unsigned long detectionDelay = 5000;       // 5-second buffer time before checking for "No Object Detected"
 unsigned long measurementStartTime = 0;          // Track when measurement mode starts
@@ -49,27 +53,53 @@ const unsigned long measurementTimeout = 60000;  // 60 seconds measurement timeo
 // Reference orientation
 int16_t refX = 0, refY = 0, refZ = 0;
 
+// Add this display flush callback for LVGL
+void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
+  uint16_t w = area->x2 - area->x1 + 1;
+  uint16_t h = area->y2 - area->y1 + 1;
+  tft.startWrite();
+  tft.setAddrWindow(area->x1, area->y1, w, h);
+  tft.pushColors((uint16_t *)&color_p->full, w * h, true);
+  tft.endWrite();
+  lv_disp_flush_ready(disp);  // Inform LVGL that flushing is done
+}
+
 void setup() {
-  // Set up serial communication
-  Serial.begin(9600);  // Start serial communication at 9600 baud rate
-
-  // Set up pins
-  pinMode(ledPin, OUTPUT);              // Set LED pin as output for user control
-  pinMode(buttonPin, INPUT);            // Set measurement button pin as input
-  pinMode(wakeUpButtonPin, INPUT);      // Set wake-up button pin as input
-  pinMode(screenBacklightPin, OUTPUT);  // Set backlight control pin as output
-
-  // Turn on the backlight at startup
-  digitalWrite(screenBacklightPin, HIGH);
-
-  // Initialize the display
-  tft.init();                                                                                              // Initialize the display
-  tft.setRotation(1);                                                                                      // Set display orientation (adjust if needed)
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());  // Display the initial home screen with measurements
-
-  // Initialize accelerometer
+  Serial.begin(9600);
   Wire.begin();
+
+  // Pin setup
+  pinMode(screenBacklightPin, OUTPUT);
+  digitalWrite(screenBacklightPin, HIGH);
+  pinMode(buttonPin, INPUT_PULLUP);  // Use INPUT_PULLUP to ensure button reads HIGH when not pressed
+  pinMode(wakeUpButtonPin, INPUT_PULLUP);
+
+  // TFT initialization
+  tft.init();
+  tft.setRotation(1);
+
+  // LVGL initialization
+  lv_init();
+  lv_disp_draw_buf_init(&draw_buf, buf, NULL, TFT_WIDTH * 10);
+
+  static lv_disp_drv_t disp_drv;
+  lv_disp_drv_init(&disp_drv);
+  disp_drv.draw_buf = &draw_buf;
+  disp_drv.flush_cb = my_disp_flush;
+  disp_drv.hor_res = TFT_WIDTH;
+  disp_drv.ver_res = TFT_HEIGHT;
+  lv_disp_drv_register(&disp_drv);
+
+  // Accelerometer initialization
+  Serial.println("Initializing Accelerometer...");
   accelerometer.initialize();
+
+  // Verify accelerometer
+  accelerometer.saveReferenceOrientation();
+
+  // Initial home screen display
+  Serial.println("Initializing Home Screen...");
+  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
 
   // Initialize timers
   lastActivityTime = millis();
@@ -77,6 +107,8 @@ void setup() {
 }
 
 void loop() {
+  lv_timer_handler();  // Handle LVGL tasks
+  delay(5);            // Small delay for processing
   // Check for wake-up button press or accelerometer tilt if the system is in sleep mode
   if (isAsleep) {
     if (digitalRead(wakeUpButtonPin) == LOW || accelerometer.detectTilt()) {
@@ -99,27 +131,32 @@ void loop() {
     homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
   }
 
-  // Check if measurement button is pressed to enter or cancel measurement mode
+  // Check if the green button is pressed
   if (digitalRead(buttonPin) == LOW) {
-    lastActivityTime = millis();  // Reset the activity timer
+    Serial.println("Green button pressed.");
+    lastActivityTime = millis();
 
     if (!measurementMode) {
-      // Start measurement mode
+      Serial.println("Entering measurement mode...");
       measurementMode = true;
       awaitingObjectDetection = true;
-      measurementStartTime = millis();  // Record the start time of measurement mode
+      measurementStartTime = millis();
 
-      // Use the MeasurementScreen class to show the waiting screen
+      // Show the measurement screen
       measurementScreen.showWaitingWithCountdown();
     } else if (awaitingObjectDetection) {
-      // Cancel measurement mode if waiting for object detection
+      Serial.println("Exiting measurement mode...");
       measurementMode = false;
       awaitingObjectDetection = false;
 
-      // Show the home screen with updated data
+      // Return to the home screen
       homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
-      Serial.println("Measurement mode canceled");
     }
+  }
+
+  // Update measurement screen countdown
+  if (measurementMode && awaitingObjectDetection) {
+    measurementScreen.updateCountdown();
   }
 
   if (measurementMode && awaitingObjectDetection) {
@@ -171,27 +208,29 @@ void initADXL345() {
 
 void enterSleepMode() {
   Serial.println("Entering sleep mode...");
-
-  // Save reference orientation
   accelerometer.saveReferenceOrientation();
-
-  // Put the display and system into sleep mode
-  tft.writecommand(TFT_DISPOFF);          // Turn off display
-  tft.writecommand(TFT_SLPIN);            // Put display into sleep mode
-  digitalWrite(ledPin, LOW);              // Turn off onboard LED
-  digitalWrite(screenBacklightPin, LOW);  // Turn off screen backlighting
+  tft.writecommand(TFT_DISPOFF);
+  tft.writecommand(TFT_SLPIN);
+  digitalWrite(ledPin, LOW);
+  digitalWrite(screenBacklightPin, LOW);
   isAsleep = true;
 }
 
 void wakeUp() {
   Serial.println("Waking up from sleep mode...");
+
+  // Restore display power
   turnOnDisplay();
-  tft.fillScreen(TFT_BLACK);
-  delay(10);
+
+  // Reload the LVGL screen
+  Serial.println("Reloading Home Screen...");
+  lv_scr_load(lv_scr_act());  // Ensure the current LVGL screen is loaded
+  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+
   isAsleep = false;
   lastActivityTime = millis();
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
 }
+
 
 void turnOnDisplay() {
   digitalWrite(screenBacklightPin, HIGH);
