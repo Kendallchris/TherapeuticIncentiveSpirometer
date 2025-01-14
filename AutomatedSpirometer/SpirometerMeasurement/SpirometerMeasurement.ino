@@ -1,5 +1,7 @@
 // TODO: when taking measurement and "Waiting for object, press green button to cancel" screen is up, the sensor is not sensing for an object (this is potentially okay)
 
+// Currently: Success screen is not a thing - is not shown - just goes straight to home screen upon successful reading
+
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
 #include <Wire.h>         // Include Wire library for I2C communication
@@ -18,6 +20,15 @@ const int screenBacklightPin = 4;
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
+
+// Handle rotating the screen to landscape for TFT
+// Override TFT_WIDTH and TFT_HEIGHT for rotation
+#define ROTATED_WIDTH 480
+#define ROTATED_HEIGHT 320
+#undef TFT_WIDTH
+#undef TFT_HEIGHT
+#define TFT_WIDTH ROTATED_WIDTH
+#define TFT_HEIGHT ROTATED_HEIGHT
 
 // Angle threshold for tilt detection (in degrees)
 const float tiltAngleThreshold = 30.0;
@@ -68,133 +79,135 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 void setup() {
   Serial.begin(9600);
   Wire.begin();
-  Serial.print("TFT_WIDTH: ");
-  Serial.println(TFT_WIDTH);
-  Serial.print("TFT_HEIGHT: ");
-  Serial.println(TFT_HEIGHT);
 
   // Pin setup
   pinMode(screenBacklightPin, OUTPUT);
   digitalWrite(screenBacklightPin, HIGH);
-  pinMode(buttonPin, INPUT_PULLUP);  // Use INPUT_PULLUP to ensure button reads HIGH when not pressed
+  pinMode(buttonPin, INPUT_PULLUP);
   pinMode(wakeUpButtonPin, INPUT_PULLUP);
 
   // TFT initialization
   tft.init();
-  tft.setRotation(1);
+  tft.setRotation(1);  // Landscape mode
+
+  // Verify runtime values
+  Serial.print("Runtime TFT_WIDTH: ");
+  Serial.println(TFT_WIDTH);
+  Serial.print("Runtime TFT_HEIGHT: ");
+  Serial.println(TFT_HEIGHT);
 
   // LVGL initialization
   lv_init();
-  lv_disp_draw_buf_init(&draw_buf, buf, NULL, TFT_WIDTH * 10);
+  lv_disp_draw_buf_init(&draw_buf, buf, NULL, TFT_WIDTH * 20);
 
   static lv_disp_drv_t disp_drv;
   lv_disp_drv_init(&disp_drv);
   disp_drv.draw_buf = &draw_buf;
   disp_drv.flush_cb = my_disp_flush;
-  disp_drv.hor_res = TFT_WIDTH;
-  disp_drv.ver_res = TFT_HEIGHT;
+  disp_drv.hor_res = TFT_WIDTH;   // Rotated width
+  disp_drv.ver_res = TFT_HEIGHT;  // Rotated height
   lv_disp_drv_register(&disp_drv);
 
-  // Accelerometer initialization
-  Serial.println("Initializing Accelerometer...");
-  accelerometer.initialize();
+  // Debug LVGL resolution
+  Serial.print("LVGL hor_res: ");
+  Serial.println(disp_drv.hor_res);
+  Serial.print("LVGL ver_res: ");
+  Serial.println(disp_drv.ver_res);
 
-  // Verify accelerometer
-  accelerometer.saveReferenceOrientation();
-
-  // Initial home screen display
-  Serial.println("Initializing Home Screen...");
+  // Initial screen
   homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
-
-  // Initialize timers
-  lastActivityTime = millis();
-  lastResetTime = millis();
 }
 
 void loop() {
   lv_timer_handler();  // Handle LVGL tasks
-  delay(5);            // Small delay for processing
-  // Check for wake-up button press or accelerometer tilt if the system is in sleep mode
+  delay(5);            // Allow time for LVGL to process
+
   if (isAsleep) {
-    if (digitalRead(wakeUpButtonPin) == LOW || accelerometer.detectTilt()) {
-      wakeUp();
-    }
+    handleWakeup();
     return;
   }
 
-  // Check if inactivity threshold has been reached to enter sleep mode
+  handleSleepMode();
+  handleHourlyReset();
+  handleMeasurementMode();
+  delay(200);  // Stable sensor reading interval
+}
+
+void handleWakeup() {
+  if (digitalRead(wakeUpButtonPin) == LOW || accelerometer.detectTilt()) {
+    wakeUp();
+  }
+}
+
+void handleSleepMode() {
   if (millis() - lastActivityTime >= sleepDelay) {
     enterSleepMode();
   }
+}
 
-  // Check if an hour has passed since the last reset
+void handleHourlyReset() {
   if (millis() - lastResetTime >= hourDuration) {
-    dataLogger.resetHourlyData();  // Move current hour data to previous and reset current
-    lastResetTime = millis();      // Reset the hourly timer
-
-    // Update home screen with new data
+    dataLogger.resetHourlyData();
+    lastResetTime = millis();
     homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
   }
+}
 
-  // Check if the green button is pressed
+void handleMeasurementMode() {
   if (digitalRead(buttonPin) == LOW) {
-    Serial.println("Green button pressed.");
     lastActivityTime = millis();
-
     if (!measurementMode) {
       Serial.println("Entering measurement mode...");
       measurementMode = true;
-      awaitingObjectDetection = true;
+      awaitingObjectDetection = true;  // Set state before loading screen
       measurementStartTime = millis();
       measurementScreen.showWaitingWithCountdown();
-
-      // Force full refresh after transitioning to the measurement screen
-      lv_refr_now(NULL);
+      lv_refr_now(NULL);  // Force refresh
     } else if (awaitingObjectDetection) {
       Serial.println("Exiting measurement mode...");
-      measurementMode = false;
-      awaitingObjectDetection = false;
-      homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
-
-      // Force full refresh after returning to the home screen
-      lv_refr_now(NULL);
+      exitMeasurementMode();
     }
   }
 
-  // Update countdown and detect objects
   if (measurementMode && awaitingObjectDetection) {
     measurementScreen.updateCountdown();
-
     if (millis() - measurementStartTime >= measurementTimeout) {
       Serial.println("Measurement timed out. Returning to home screen.");
-      measurementMode = false;
-      awaitingObjectDetection = false;
-      homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+      exitMeasurementMode();
     }
 
-    int sensorValue = analogRead(sensorPin);
-    bool objectDetected = (sensorValue < detectionThreshold);
+    detectObject();
+  }
+}
 
-    if (objectDetected != previousSensorState) {
-      lastActivityTime = millis();
+void exitMeasurementMode() {
+  measurementMode = false;
+  awaitingObjectDetection = false;
+  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+  lv_refr_now(NULL);  // Force refresh
+}
 
-      if (objectDetected) {
-        Serial.println("Object detected!");
-        dataLogger.incrementMeasurement();
-        measurementScreen.showSuccess();
-        measurementMode = false;
-        awaitingObjectDetection = false;
-        homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
-      } else {
-        Serial.println("No object detected.");
-        measurementScreen.showNoObject();
-      }
-
-      previousSensorState = objectDetected;
-    }
+void detectObject() {
+  if (measurementScreen.isCountdownActive()) {
+    return;  // Skip object detection during countdown
   }
 
-  delay(200);  // Short delay for stable reading
+  int sensorValue = analogRead(sensorPin);
+  bool objectDetected = (sensorValue < detectionThreshold);
+
+  if (objectDetected != previousSensorState) {
+    lastActivityTime = millis();
+    if (objectDetected) {
+      Serial.println("Object detected!");
+      dataLogger.incrementMeasurement();
+      measurementScreen.showSuccess();
+      exitMeasurementMode();
+    } else {
+      Serial.println("No object detected.");
+      measurementScreen.showNoObject();
+    }
+    previousSensorState = objectDetected;
+  }
 }
 
 void initADXL345() {

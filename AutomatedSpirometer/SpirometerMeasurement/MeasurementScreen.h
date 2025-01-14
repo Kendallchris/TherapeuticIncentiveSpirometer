@@ -9,8 +9,11 @@ public:
     MeasurementScreen(TFT_eSPI &display);    // Constructor that takes the display instance
     void showWaitingWithCountdown();         // Show "Waiting for object..." screen with countdown
     void updateCountdown();
+    void beginMeasurementPhase();
     void showSuccess();                      // Show "SUCCESS!" screen
     void showNoObject();                     // Show "No object detected." screen
+
+    bool isCountdownActive() const { return countdown_active; }
 
 private:
     TFT_eSPI &tft;                           // Reference to the display instance
