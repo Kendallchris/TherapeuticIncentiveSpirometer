@@ -23,8 +23,8 @@ const int screenBacklightPin = 4;
 const float tiltAngleThreshold = 30.0;
 
 TFT_eSPI tft = TFT_eSPI();
+lv_color_t buf[TFT_WIDTH * 20];
 lv_disp_draw_buf_t draw_buf;
-lv_color_t buf[TFT_WIDTH * 10];
 
 // Create instances
 HomeScreen homeScreen(tft);
@@ -55,6 +55,7 @@ int16_t refX = 0, refY = 0, refZ = 0;
 
 // Add this display flush callback for LVGL
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
+  Serial.println("Display flush called!");  // Debug output
   uint16_t w = area->x2 - area->x1 + 1;
   uint16_t h = area->y2 - area->y1 + 1;
   tft.startWrite();
@@ -67,6 +68,10 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 void setup() {
   Serial.begin(9600);
   Wire.begin();
+  Serial.print("TFT_WIDTH: ");
+  Serial.println(TFT_WIDTH);
+  Serial.print("TFT_HEIGHT: ");
+  Serial.println(TFT_HEIGHT);
 
   // Pin setup
   pinMode(screenBacklightPin, OUTPUT);
@@ -141,31 +146,30 @@ void loop() {
       measurementMode = true;
       awaitingObjectDetection = true;
       measurementStartTime = millis();
-
-      // Show the measurement screen
       measurementScreen.showWaitingWithCountdown();
+
+      // Force full refresh after transitioning to the measurement screen
+      lv_refr_now(NULL);
     } else if (awaitingObjectDetection) {
       Serial.println("Exiting measurement mode...");
       measurementMode = false;
       awaitingObjectDetection = false;
-
-      // Return to the home screen
       homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+
+      // Force full refresh after returning to the home screen
+      lv_refr_now(NULL);
     }
   }
 
-  // Update measurement screen countdown
+  // Update countdown and detect objects
   if (measurementMode && awaitingObjectDetection) {
     measurementScreen.updateCountdown();
-  }
 
-  if (measurementMode && awaitingObjectDetection) {
     if (millis() - measurementStartTime >= measurementTimeout) {
       Serial.println("Measurement timed out. Returning to home screen.");
       measurementMode = false;
       awaitingObjectDetection = false;
       homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
-      return;
     }
 
     int sensorValue = analogRead(sensorPin);
@@ -175,19 +179,13 @@ void loop() {
       lastActivityTime = millis();
 
       if (objectDetected) {
-        digitalWrite(ledPin, HIGH);
         Serial.println("Object detected!");
         dataLogger.incrementMeasurement();
-
-        // Show success screen
         measurementScreen.showSuccess();
-
-        // Reset measurement mode and show home screen
         measurementMode = false;
         awaitingObjectDetection = false;
         homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
       } else {
-        digitalWrite(ledPin, LOW);
         Serial.println("No object detected.");
         measurementScreen.showNoObject();
       }
@@ -226,6 +224,9 @@ void wakeUp() {
   Serial.println("Reloading Home Screen...");
   lv_scr_load(lv_scr_act());  // Ensure the current LVGL screen is loaded
   homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+
+  // Force a full refresh after waking up
+  lv_refr_now(NULL);
 
   isAsleep = false;
   lastActivityTime = millis();
