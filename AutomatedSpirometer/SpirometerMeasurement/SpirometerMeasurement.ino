@@ -1,6 +1,7 @@
 // TODO: when taking measurement and "Waiting for object, press green button to cancel" screen is up, the sensor is not sensing for an object (this is potentially okay)
 
-// Currently: Success screen is not a thing - is not shown - just goes straight to home screen upon successful reading
+// Currently: On first attempt to measure, after countdown it goes to home screen immediately
+//            Accelerometer not working: getting "18:29:19.570 -> Current Orientation - X: 0, Y: 0, Z: 0\n18:29:19.570 -> Error: Magnitude is zero!"
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
@@ -37,12 +38,6 @@ TFT_eSPI tft = TFT_eSPI();
 lv_color_t buf[TFT_WIDTH * 20];
 lv_disp_draw_buf_t draw_buf;
 
-// Create instances
-HomeScreen homeScreen(tft);
-MeasurementScreen measurementScreen(tft);
-DataLogger dataLogger;
-Accelerometer accelerometer(ADXL345_I2C_ADDR, tiltAngleThreshold);
-
 // Threshold for object detection; adjust this based on testing
 const int detectionThreshold = 100;  // Experiment to find the optimal value
 
@@ -51,6 +46,7 @@ bool previousSensorState = HIGH;       // Tracks previous sensor state; assume n
 bool measurementMode = false;          // Tracks if we are in measurement mode
 bool isAsleep = false;                 // Tracks if the system is in "sleep" mode
 bool awaitingObjectDetection = false;  // Tracks if waiting for object detection to succeed
+bool showingSuccess = false;          // Tracks if the success screen is currently displayed
 
 // Timer variables
 unsigned long lastActivityTime = 0;              // Tracks the last time there was activity
@@ -60,6 +56,14 @@ const unsigned long hourDuration = 3600000;      // 1 hour in milliseconds
 const unsigned long detectionDelay = 5000;       // 5-second buffer time before checking for "No Object Detected"
 unsigned long measurementStartTime = 0;          // Track when measurement mode starts
 const unsigned long measurementTimeout = 60000;  // 60 seconds measurement timeout (if nothing is detected and used doesn't click to cancel, returns to home screen)
+unsigned long successStartTime = 0;   // Tracks when the success screen was shown
+const unsigned long successDuration = 2000;  // Success screen duration in milliseconds (2 seconds)
+
+// Create instances
+HomeScreen homeScreen(tft);
+MeasurementScreen measurementScreen(tft, awaitingObjectDetection);
+DataLogger dataLogger;
+Accelerometer accelerometer(ADXL345_I2C_ADDR, tiltAngleThreshold);
 
 // Reference orientation
 int16_t refX = 0, refY = 0, refZ = 0;
@@ -122,6 +126,12 @@ void loop() {
   lv_timer_handler();  // Handle LVGL tasks
   delay(5);            // Allow time for LVGL to process
 
+  // Handle success screen delay
+    if (showingSuccess && (millis() - successStartTime >= successDuration)) {
+        showingSuccess = false;  // Reset success screen state
+        exitMeasurementMode();   // Transition back to the home screen
+    }
+
   if (isAsleep) {
     handleWakeup();
     return;
@@ -154,60 +164,67 @@ void handleHourlyReset() {
 }
 
 void handleMeasurementMode() {
-  if (digitalRead(buttonPin) == LOW) {
-    lastActivityTime = millis();
-    if (!measurementMode) {
-      Serial.println("Entering measurement mode...");
-      measurementMode = true;
-      awaitingObjectDetection = true;  // Set state before loading screen
-      measurementStartTime = millis();
-      measurementScreen.showWaitingWithCountdown();
-      lv_refr_now(NULL);  // Force refresh
-    } else if (awaitingObjectDetection) {
-      Serial.println("Exiting measurement mode...");
-      exitMeasurementMode();
-    }
-  }
-
-  if (measurementMode && awaitingObjectDetection) {
-    measurementScreen.updateCountdown();
-    if (millis() - measurementStartTime >= measurementTimeout) {
-      Serial.println("Measurement timed out. Returning to home screen.");
-      exitMeasurementMode();
+    if (digitalRead(buttonPin) == LOW) {
+        lastActivityTime = millis();
+        if (!measurementMode) {
+            Serial.println("Entering measurement mode...");
+            measurementMode = true;
+            awaitingObjectDetection = false;  // Initially set to false
+            measurementStartTime = millis();
+            measurementScreen.showWaitingWithCountdown();
+            lv_refr_now(NULL);
+        } else if (!awaitingObjectDetection) {
+            // Allow canceling during countdown
+            Serial.println("Measurement canceled during countdown.");
+            measurementMode = false;
+            awaitingObjectDetection = false;
+            exitMeasurementMode();
+            homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+        }
     }
 
-    detectObject();
-  }
+    if (measurementMode && !awaitingObjectDetection) {
+        measurementScreen.updateCountdown();
+    }
+
+    if (measurementMode && awaitingObjectDetection) {
+        detectObject();
+    }
 }
 
 void exitMeasurementMode() {
-  measurementMode = false;
-  awaitingObjectDetection = false;
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
-  lv_refr_now(NULL);  // Force refresh
+    Serial.println("Exiting measurement mode...");
+    measurementMode = false;
+    awaitingObjectDetection = false;
+    homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+    lv_refr_now(NULL);  // Force refresh
 }
 
 void detectObject() {
-  if (measurementScreen.isCountdownActive()) {
-    return;  // Skip object detection during countdown
-  }
-
-  int sensorValue = analogRead(sensorPin);
-  bool objectDetected = (sensorValue < detectionThreshold);
-
-  if (objectDetected != previousSensorState) {
-    lastActivityTime = millis();
-    if (objectDetected) {
-      Serial.println("Object detected!");
-      dataLogger.incrementMeasurement();
-      measurementScreen.showSuccess();
-      exitMeasurementMode();
-    } else {
-      Serial.println("No object detected.");
-      measurementScreen.showNoObject();
+    if (measurementScreen.isCountdownActive() || !awaitingObjectDetection) {
+        return;  // Skip object detection during countdown or when not in measurement phase
     }
-    previousSensorState = objectDetected;
-  }
+
+    int sensorValue = analogRead(sensorPin);
+    bool objectDetected = (sensorValue < detectionThreshold);
+
+    if (objectDetected != previousSensorState) {
+        lastActivityTime = millis();
+        if (objectDetected) {
+            Serial.println("Object detected!");
+            dataLogger.incrementMeasurement();
+
+            // Show success screen and start success timer
+            measurementScreen.showSuccess();
+            showingSuccess = true;           // Set success screen state
+            successStartTime = millis();     // Record the start time
+        } else {
+            Serial.println("No object detected.");
+            measurementScreen.showNoObject();
+            exitMeasurementMode();  // Transition back to the home screen for "No Object"
+        }
+        previousSensorState = objectDetected;
+    }
 }
 
 void initADXL345() {
