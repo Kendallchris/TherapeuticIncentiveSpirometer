@@ -18,6 +18,10 @@ const int screenBacklightPin = 4;
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
 
+// Define ILI9341 sleep and wake commands (ILI9341_DRIVER doesn't define these for some reason but ILI9488_DRIVER - used for 3.5" display - does)
+#define TFT_SLPIN  0x10  // Sleep In
+#define TFT_SLPOUT 0x11  // Sleep Out
+
 // Angle threshold for tilt detection (in degrees)
 const float tiltAngleThreshold = 30.0;
 
