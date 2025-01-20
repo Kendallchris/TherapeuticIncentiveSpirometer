@@ -1,7 +1,8 @@
-// TODO: when taking measurement and "Waiting for object, press green button to cancel" screen is up, the sensor is not sensing for an object (this is potentially okay)
-
-// Currently: On first attempt to measure, after countdown it goes to home screen immediately
-//            Accelerometer not working: getting "18:29:19.570 -> Current Orientation - X: 0, Y: 0, Z: 0\n18:29:19.570 -> Error: Magnitude is zero!"
+// TODO: On first attempt to measure, after countdown it goes to home screen immediately
+//       Accelerometer not working: getting "18:29:19.570 -> Current Orientation - X: 0, Y: 0, Z: 0\n18:29:19.570 -> Error: Magnitude is zero!"
+//       Make any button press wake the system
+//       Make the red button be a reset button (clearing the data stored on the device after being held for 5 seconds and then confirmed on a reset screen)
+//       Add in reminder functionality (just print reminders for now since no speaker, lights, or vibrator - could flash the screen instead of lights though)
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
