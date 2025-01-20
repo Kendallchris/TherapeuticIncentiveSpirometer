@@ -23,10 +23,14 @@ const int screenBacklightPin = 4;
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
 
+// Define ILI9341 sleep and wake commands (ILI9341_DRIVER doesn't define these for some reason but ILI9488_DRIVER - used for 3.5" display - does)
+#define TFT_SLPIN  0x10  // Sleep In
+#define TFT_SLPOUT 0x11  // Sleep Out
+
 // Handle rotating the screen to landscape for TFT
 // Override TFT_WIDTH and TFT_HEIGHT for rotation
-#define ROTATED_WIDTH 480
-#define ROTATED_HEIGHT 320
+#define ROTATED_WIDTH 320
+#define ROTATED_HEIGHT 240
 #undef TFT_WIDTH
 #undef TFT_HEIGHT
 #define TFT_WIDTH ROTATED_WIDTH
@@ -71,7 +75,7 @@ int16_t refX = 0, refY = 0, refZ = 0;
 
 // Add this display flush callback for LVGL
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
-  Serial.println("Display flush called!");  // Debug output
+  // Serial.println("Display flush called!");  // Debug output
   uint16_t w = area->x2 - area->x1 + 1;
   uint16_t h = area->y2 - area->y1 + 1;
   tft.startWrite();
