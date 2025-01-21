@@ -1,8 +1,7 @@
-// TODO: 
+// TODO:
 //       Make any button press wake the system
 //       Make the red button be a reset button (clearing the data stored on the device after being held for 5 seconds and then confirmed on a reset screen)
 //       Add in reminder functionality (just print reminders for now since no speaker, lights, or vibrator - could flash the screen instead of lights though)
-//       Can't exit measurement screen once countdown is done
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
@@ -47,7 +46,7 @@ lv_disp_draw_buf_t draw_buf;
 const int detectionThreshold = 100;  // Experiment to find the optimal value
 
 // State variables
-bool previousSensorState = LOW;       // Tracks previous sensor state; assume no object detected initially
+bool previousSensorState = LOW;        // Tracks previous sensor state; assume no object detected initially
 bool measurementMode = false;          // Tracks if we are in measurement mode
 bool isAsleep = false;                 // Tracks if the system is in "sleep" mode
 bool awaitingObjectDetection = false;  // Tracks if waiting for object detection to succeed
@@ -174,29 +173,38 @@ void handleHourlyReset() {
 }
 
 void handleMeasurementMode() {
+  // Handle button press for canceling measurement
   if (digitalRead(buttonPin) == LOW) {
     lastActivityTime = millis();
     if (!measurementMode) {
+      // Start measurement mode
       Serial.println("Entering measurement mode...");
       measurementMode = true;
       awaitingObjectDetection = false;  // Initially set to false
       measurementStartTime = millis();
       measurementScreen.showWaitingWithCountdown();
       lv_refr_now(NULL);
-    } else if (!awaitingObjectDetection) {
-      // Allow canceling during countdown
-      Serial.println("Measurement canceled during countdown.");
+    } else {
+      // Cancel measurement during countdown or active phase
+      Serial.println("Measurement canceled.");
       measurementMode = false;
       awaitingObjectDetection = false;
       exitMeasurementMode();
-      homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
     }
   }
 
+  // Update countdown during the waiting phase
   if (measurementMode && !awaitingObjectDetection) {
     measurementScreen.updateCountdown();
+
+    // If the countdown is done, transition to measurement phase
+    if (!measurementScreen.isCountdownActive()) {
+      Serial.println("Countdown complete. Transitioning to measurement phase.");
+      awaitingObjectDetection = true;  // Enable object detection
+    }
   }
 
+  // Handle object detection in the active measurement phase
   if (measurementMode && awaitingObjectDetection) {
     detectObject();
   }
