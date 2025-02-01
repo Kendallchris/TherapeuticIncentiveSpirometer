@@ -16,7 +16,7 @@
 const int ledPin = 13;          // Pin for the onboard LED
 const int sensorPin = 14;       // Analog pin A0 (Pin 14) connected to the TCRT5000 sensor's collector
 const int buttonPin = 2;        // GPIO2 for measurement mode button GREEN
-const int wakeUpButtonPin = 3;  // GPIO3 for wake-up button RED
+const int resetButtonPin = 3;  // GPIO3 for wake-up button RED
 const int screenBacklightPin = 4;
 
 // ADXL345 I2C Address
@@ -55,7 +55,7 @@ bool showingSuccess = false;           // Tracks if the success screen is curren
 // Timer variables
 unsigned long lastActivityTime = 0;              // Tracks the last time there was activity
 unsigned long lastResetTime = 0;                 // Tracks the last hourly reset time
-const unsigned long sleepDelay = 60000;          // 60 seconds of inactivity before sleep
+const unsigned long sleepDelay = 10000;          // 60 seconds of inactivity before sleep
 const unsigned long hourDuration = 3600000;      // 1 hour in milliseconds
 const unsigned long detectionDelay = 5000;       // 5-second buffer time before checking for "No Object Detected"
 unsigned long measurementStartTime = 0;          // Track when measurement mode starts
@@ -92,7 +92,7 @@ void setup() {
   pinMode(screenBacklightPin, OUTPUT);
   digitalWrite(screenBacklightPin, HIGH);
   pinMode(buttonPin, INPUT_PULLUP);
-  pinMode(wakeUpButtonPin, INPUT_PULLUP);
+  pinMode(resetButtonPin, INPUT_PULLUP);
 
   // TFT initialization
   tft.init();
@@ -153,7 +153,7 @@ void loop() {
 }
 
 void handleWakeup() {
-  if (digitalRead(wakeUpButtonPin) == LOW || accelerometer.detectTilt()) {
+  if (digitalRead(resetButtonPin) == LOW || digitalRead(buttonPin) == LOW || accelerometer.detectTilt()) {
     wakeUp();
   }
 }
