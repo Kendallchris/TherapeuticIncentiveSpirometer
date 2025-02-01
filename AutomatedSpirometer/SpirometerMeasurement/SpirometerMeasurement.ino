@@ -1,7 +1,7 @@
 // TODO:
-//       Make any button press wake the system
-//       Make the red button be a reset button (clearing the data stored on the device after being held for 5 seconds and then confirmed on a reset screen)
 //       Add in reminder functionality (just print reminders for now since no speaker, lights, or vibrator - could flash the screen instead of lights though)
+//       Add motivational message after a few successful measurements (i.e. “Good job! Keep it up!”) 
+//       When piston reaches the top (successful measurement) buzz and flash the screen notifying of success
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
