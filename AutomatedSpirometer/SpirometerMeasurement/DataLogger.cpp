@@ -2,40 +2,36 @@
 #include "DataStorage.h"
 
 DataLogger::DataLogger() {
-    // Load data from EEPROM, handling uninitialized values
-    currentHourMeasurements = DataStorage::loadCurrentHourMeasurements();
-    previousHourMeasurements = DataStorage::loadPreviousHourMeasurements();
+  // Load data from EEPROM, handling uninitialized values
+  currentHourMeasurements = DataStorage::loadCurrentHourMeasurements();
+  previousHourMeasurements = DataStorage::loadPreviousHourMeasurements();
 
-    if (currentHourMeasurements == 255) {
-        currentHourMeasurements = 0;
-        DataStorage::saveCurrentHourMeasurements(currentHourMeasurements);
-    }
+  if (currentHourMeasurements == 255) {
+    currentHourMeasurements = 0;
+    DataStorage::saveCurrentHourMeasurements(currentHourMeasurements);
+  }
 
-    if (previousHourMeasurements == 255) {
-        previousHourMeasurements = 0;
-        DataStorage::savePreviousHourMeasurements(previousHourMeasurements);
-    }
+  if (previousHourMeasurements == 255) {
+    previousHourMeasurements = 0;
+    DataStorage::savePreviousHourMeasurements(previousHourMeasurements);
+  }
 }
 
 void DataLogger::incrementMeasurement() {
-    currentHourMeasurements++;  // Increment without limit
-    DataStorage::saveCurrentHourMeasurements(currentHourMeasurements);  // Save updated count to storage
+  currentHourMeasurements++;                                          // Increment without limit
+  DataStorage::saveCurrentHourMeasurements(currentHourMeasurements);  // Save updated count to storage
 }
 
 int DataLogger::getCurrentHourMeasurements(bool displayFull) {
-    // Return the full count if displayFull is true, else limit to 10
-    return displayFull ? currentHourMeasurements : (currentHourMeasurements > 10 ? 10 : currentHourMeasurements);
+  // Return the full count if displayFull is true, else limit to 10
+  return displayFull ? currentHourMeasurements : (currentHourMeasurements > 10 ? 10 : currentHourMeasurements);
 }
 
 int DataLogger::getPreviousHourMeasurements() {
-    return previousHourMeasurements;
+  return previousHourMeasurements;
 }
 
-void DataLogger::resetHourlyData() {
-    // Move current count to previous and reset current hour
-    previousHourMeasurements = currentHourMeasurements;
-    currentHourMeasurements = 0;
-
-    DataStorage::savePreviousHourMeasurements(previousHourMeasurements);   // Save previous hour to storage
-    DataStorage::saveCurrentHourMeasurements(currentHourMeasurements);     // Save reset current hour to storage
+void DataLogger::resetData() {
+  currentHourMeasurements = 0;
+  DataStorage::saveCurrentHourMeasurements(currentHourMeasurements);
 }

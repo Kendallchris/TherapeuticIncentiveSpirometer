@@ -5,17 +5,17 @@
 
 class Accelerometer {
 public:
-    Accelerometer(uint8_t address, float tiltThreshold);
+  Accelerometer(uint8_t address, float tiltThreshold);
 
-    void initialize();
-    void saveReferenceOrientation();
-    bool detectTilt();
+  void initialize();
+  void saveReferenceOrientation();
+  bool detectTilt();
 
-    int16_t refX, refY, refZ;  // Reference orientation values
+  int16_t refX, refY, refZ;  // Reference orientation values
 
 private:
-    uint8_t i2cAddress;        // I2C address for the accelerometer
-    float tiltAngleThreshold;  // Tilt threshold angle (degrees)
+  uint8_t i2cAddress;        // I2C address for the accelerometer
+  float tiltAngleThreshold;  // Tilt threshold angle (degrees)
 };
 
 #endif

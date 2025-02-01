@@ -11,11 +11,12 @@
 #include "DataStorage.h"  // Include DataStorage for persistent storage
 #include "MeasurementScreen.h"
 #include "Accelerometer.h"
+#include "ResetConfirmation.h"
 
 // Pin definitions
-const int ledPin = 13;          // Pin for the onboard LED
-const int sensorPin = 14;       // Analog pin A0 (Pin 14) connected to the TCRT5000 sensor's collector
-const int buttonPin = 2;        // GPIO2 for measurement mode button GREEN
+const int ledPin = 13;         // Pin for the onboard LED
+const int sensorPin = 14;      // Analog pin A0 (Pin 14) connected to the TCRT5000 sensor's collector
+const int buttonPin = 2;       // GPIO2 for measurement mode button GREEN
 const int resetButtonPin = 3;  // GPIO3 for wake-up button RED
 const int screenBacklightPin = 4;
 
@@ -55,7 +56,7 @@ bool showingSuccess = false;           // Tracks if the success screen is curren
 // Timer variables
 unsigned long lastActivityTime = 0;              // Tracks the last time there was activity
 unsigned long lastResetTime = 0;                 // Tracks the last hourly reset time
-const unsigned long sleepDelay = 10000;          // 60 seconds of inactivity before sleep
+const unsigned long sleepDelay = 60000;          // 60 seconds of inactivity before sleep
 const unsigned long hourDuration = 3600000;      // 1 hour in milliseconds
 const unsigned long detectionDelay = 5000;       // 5-second buffer time before checking for "No Object Detected"
 unsigned long measurementStartTime = 0;          // Track when measurement mode starts
@@ -68,6 +69,7 @@ HomeScreen homeScreen(tft);
 MeasurementScreen measurementScreen(tft, awaitingObjectDetection);
 DataLogger dataLogger;
 Accelerometer accelerometer(ADXL345_I2C_ADDR, tiltAngleThreshold);
+ResetConfirmation resetScreen(tft, dataLogger);
 
 // Reference orientation
 int16_t refX = 0, refY = 0, refZ = 0;
@@ -128,7 +130,7 @@ void setup() {
   Serial.println(disp_drv.ver_res);
 
   // Initial screen
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+  homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
 }
 
 void loop() {
@@ -147,7 +149,7 @@ void loop() {
   }
 
   handleSleepMode();
-  handleHourlyReset();
+  handleResetButton();
   handleMeasurementMode();
   delay(200);  // Stable sensor reading interval
 }
@@ -164,15 +166,26 @@ void handleSleepMode() {
   }
 }
 
-void handleHourlyReset() {
-  if (millis() - lastResetTime >= hourDuration) {
-    dataLogger.resetHourlyData();
-    lastResetTime = millis();
-    homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+void handleResetButton() {
+  if (ResetConfirmation::isActive) {
+    if (digitalRead(resetButtonPin) == LOW) {
+      resetScreen.confirmReset();
+      delay(300);  // Debounce
+    } else if (digitalRead(buttonPin) == LOW) {
+      resetScreen.cancelReset();
+      delay(300);  // Debounce
+    }
+  } else {
+    if (digitalRead(resetButtonPin) == LOW && !measurementMode) {
+      resetScreen.show();  // Show reset confirmation screen
+      delay(300);          // Debounce delay
+    }
   }
 }
 
 void handleMeasurementMode() {
+  if (ResetConfirmation::isActive) return;  // Prevent measurement if reset screen is active
+
   // Handle button press for canceling measurement
   if (digitalRead(buttonPin) == LOW) {
     lastActivityTime = millis();
@@ -214,7 +227,7 @@ void exitMeasurementMode() {
   Serial.println("Exiting measurement mode...");
   measurementMode = false;
   awaitingObjectDetection = false;
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+  homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
   lv_refr_now(NULL);  // Force refresh
 }
 
@@ -271,7 +284,7 @@ void wakeUp() {
   // Reload the LVGL screen
   Serial.println("Reloading Home Screen...");
   lv_scr_load(lv_scr_act());  // Ensure the current LVGL screen is loaded
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true), dataLogger.getPreviousHourMeasurements());
+  homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
 
   // Force a full refresh after waking up
   lv_refr_now(NULL);
