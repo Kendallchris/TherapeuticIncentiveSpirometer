@@ -15,7 +15,7 @@ void MeasurementScreen::showWaitingWithCountdown() {
   lv_label_set_text(countdown_label, "Beginning measurement...");
   lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -20);
 
-  countdown_duration = 10;          // Set countdown duration in seconds
+  countdown_duration = 5;          // Set countdown duration in seconds
   countdown_active = true;          // Enable countdown state
   countdown_start = millis();       // Start countdown timer
   awaitingObjectDetection = false;  // Ensure object detection is disabled during countdown

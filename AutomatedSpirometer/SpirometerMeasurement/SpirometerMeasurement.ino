@@ -1,6 +1,6 @@
 // TODO:
 //       Add in reminder functionality (just print reminders for now since no speaker, lights, or vibrator - could flash the screen instead of lights though)
-//       Add motivational message after a few successful measurements (i.e. “Good job! Keep it up!”) 
+//       Add motivational message after a few successful measurements (i.e. “Good job! Keep it up!”)
 //       When piston reaches the top (successful measurement) buzz and flash the screen notifying of success
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
@@ -19,6 +19,7 @@ const int sensorPin = 14;      // Analog pin A0 (Pin 14) connected to the TCRT50
 const int buttonPin = 2;       // GPIO2 for measurement mode button GREEN
 const int resetButtonPin = 3;  // GPIO3 for wake-up button RED
 const int screenBacklightPin = 4;
+const int vibrationMotorPin = 20;
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
@@ -95,6 +96,9 @@ void setup() {
   digitalWrite(screenBacklightPin, HIGH);
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(resetButtonPin, INPUT_PULLUP);
+  // Vibration Setup
+  pinMode(vibrationMotorPin, OUTPUT);
+  digitalWrite(vibrationMotorPin, LOW);
 
   // TFT initialization
   tft.init();
@@ -245,6 +249,14 @@ void detectObject() {
       Serial.println("Object detected!");
       dataLogger.incrementMeasurement();
 
+      // Trigger vibration and flash the screen
+      digitalWrite(20, HIGH);
+      delay(2000);
+      digitalWrite(20,LOW);
+      delay(2000);
+      //vibrate(500);    // Vibrate for 500ms
+      //flashScreen(2);  // Flash the screen twice
+
       // Show success screen and start success timer
       measurementScreen.showSuccess();
       showingSuccess = true;        // Set success screen state
@@ -293,7 +305,6 @@ void wakeUp() {
   lastActivityTime = millis();
 }
 
-
 void turnOnDisplay() {
   digitalWrite(screenBacklightPin, HIGH);
   delay(50);
@@ -302,3 +313,18 @@ void turnOnDisplay() {
   tft.writecommand(TFT_DISPON);
   delay(50);
 }
+
+void vibrate(int duration) {
+  digitalWrite(vibrationMotorPin, HIGH);
+  delay(duration);
+  digitalWrite(vibrationMotorPin, LOW);
+}
+
+// void flashScreen(int flashes) {
+//   for (int i = 0; i < flashes; i++) {
+//     digitalWrite(screenBacklightPin, LOW);
+//     delay(200);
+//     digitalWrite(screenBacklightPin, HIGH);
+//     delay(200);
+//   }
+// }
