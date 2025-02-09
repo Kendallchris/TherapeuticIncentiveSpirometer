@@ -1,5 +1,4 @@
 #include "MeasurementScreen.h"
-#include <lvgl.h>
 
 MeasurementScreen::MeasurementScreen(TFT_eSPI &display, bool &awaitingDetection)
   : tft(display), awaitingObjectDetection(awaitingDetection), countdown_label(nullptr) {

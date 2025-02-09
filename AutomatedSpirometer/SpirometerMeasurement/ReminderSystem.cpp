@@ -1,0 +1,69 @@
+#include "ReminderSystem.h"
+
+extern void turnOnDisplay();
+extern void wakeUp();
+
+ReminderSystem::ReminderSystem(int motorPin, int backlightPin, int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
+    : vibrationMotorPin(motorPin), screenBacklightPin(backlightPin), buttonPin(buttonPin), 
+      isAsleep(sleepState), lastActivityTime(millis()), tft(display), dataLogger(logger), reminderScreen(display, logger) {  
+    pinMode(vibrationMotorPin, OUTPUT);
+    pinMode(screenBacklightPin, OUTPUT);
+    pinMode(buttonPin, INPUT_PULLUP);
+    digitalWrite(vibrationMotorPin, LOW);
+}
+
+void ReminderSystem::resetTimer() {
+    lastActivityTime = millis();
+}
+
+void ReminderSystem::checkReminder() {
+    if (ReminderScreen::isActive && digitalRead(buttonPin) == LOW) {
+        Serial.println("Dismissing reminder via hardware button...");
+        dismissReminder();
+        delay(300);
+        return;
+    }
+
+    if (millis() - lastActivityTime >= reminderInterval) {
+        triggerReminder();
+        resetTimer();
+    }
+}
+
+void ReminderSystem::triggerReminder() {
+    Serial.println("Reminder triggered: Time to take a measurement!");
+
+    if (isAsleep) {
+        wakeUp();
+    }
+
+    activateReminderAlert(3, 1000);
+
+    Serial.println("Displaying reminder screen now...");
+    ReminderScreen::isActive = true;
+    reminderScreen.show();
+}
+
+void ReminderSystem::dismissReminder() {
+    Serial.println("Reminder dismissed via hardware button.");
+    ReminderScreen::isActive = false;
+    reminderScreen.dismissReminder();
+}
+
+void ReminderSystem::activateReminderAlert(int flashes, int vibrationDuration) {
+    Serial.println("Activating reminder alert...");
+
+    for (int i = 0; i < flashes; i++) {
+        digitalWrite(screenBacklightPin, LOW);
+        digitalWrite(vibrationMotorPin, HIGH);
+        delay(200);
+        digitalWrite(screenBacklightPin, HIGH);
+        digitalWrite(vibrationMotorPin, LOW);
+        delay(200);
+    }
+
+    Serial.println("Reminder alert completed.");
+    turnOnDisplay();
+    lv_scr_load(lv_scr_act());
+    lv_refr_now(NULL);
+}

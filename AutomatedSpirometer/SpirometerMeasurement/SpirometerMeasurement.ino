@@ -1,7 +1,8 @@
 // TODO:
-//       Add in reminder functionality (just print reminders for now since no speaker, lights, or vibrator - could flash the screen instead of lights though)
 //       Add motivational message after a few successful measurements (i.e. “Good job! Keep it up!”)
-//       When piston reaches the top (successful measurement) buzz and flash the screen notifying of success
+//       Whenever a new screen is loaded, make sure all other screen flags are set to false
+//       Adjust buzzing logic for reminder to allow for motor to work better
+//       Adjust success logic to make buzzing logic in the success function in measurement screen (have buzzing while displaying success message)
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
@@ -12,6 +13,8 @@
 #include "MeasurementScreen.h"
 #include "Accelerometer.h"
 #include "ResetConfirmation.h"
+#include "ReminderSystem.h"
+
 
 // Pin definitions
 const int ledPin = 13;         // Pin for the onboard LED
@@ -71,6 +74,8 @@ MeasurementScreen measurementScreen(tft, awaitingObjectDetection);
 DataLogger dataLogger;
 Accelerometer accelerometer(ADXL345_I2C_ADDR, tiltAngleThreshold);
 ResetConfirmation resetScreen(tft, dataLogger);
+ReminderSystem reminderSystem(vibrationMotorPin, screenBacklightPin, buttonPin, tft, isAsleep, dataLogger);
+ReminderScreen reminderScreen(tft, dataLogger);
 
 // Reference orientation
 int16_t refX = 0, refY = 0, refZ = 0;
@@ -139,6 +144,7 @@ void setup() {
 
 void loop() {
   lv_timer_handler();  // Handle LVGL tasks
+  lv_task_handler();
   delay(5);            // Allow time for LVGL to process
 
   // Handle success screen delay
@@ -155,6 +161,10 @@ void loop() {
   handleSleepMode();
   handleResetButton();
   handleMeasurementMode();
+
+  // Check if it's time for a reminder
+  reminderSystem.checkReminder();
+
   delay(200);  // Stable sensor reading interval
 }
 
@@ -162,6 +172,8 @@ void handleWakeup() {
   if (digitalRead(resetButtonPin) == LOW || digitalRead(buttonPin) == LOW || accelerometer.detectTilt()) {
     wakeUp();
   }
+  // Check if it's time for a reminder
+  reminderSystem.checkReminder();
 }
 
 void handleSleepMode() {
@@ -188,43 +200,46 @@ void handleResetButton() {
 }
 
 void handleMeasurementMode() {
-  if (ResetConfirmation::isActive) return;  // Prevent measurement if reset screen is active
-
-  // Handle button press for canceling measurement
-  if (digitalRead(buttonPin) == LOW) {
-    lastActivityTime = millis();
-    if (!measurementMode) {
-      // Start measurement mode
-      Serial.println("Entering measurement mode...");
-      measurementMode = true;
-      awaitingObjectDetection = false;  // Initially set to false
-      measurementStartTime = millis();
-      measurementScreen.showWaitingWithCountdown();
-      lv_refr_now(NULL);
-    } else {
-      // Cancel measurement during countdown or active phase
-      Serial.println("Measurement canceled.");
-      measurementMode = false;
-      awaitingObjectDetection = false;
-      exitMeasurementMode();
+    if (ReminderScreen::isActive) {
+        if (digitalRead(buttonPin) == LOW) {  
+            Serial.println("Dismissing reminder via hardware button...");
+            reminderSystem.dismissReminder();
+            delay(300);  // Debounce
+        }
+        return;  // Prevent measurement mode from activating
     }
-  }
 
-  // Update countdown during the waiting phase
-  if (measurementMode && !awaitingObjectDetection) {
-    measurementScreen.updateCountdown();
+    if (ResetConfirmation::isActive) return;  // ResetConfirmation takes priority
 
-    // If the countdown is done, transition to measurement phase
-    if (!measurementScreen.isCountdownActive()) {
-      Serial.println("Countdown complete. Transitioning to measurement phase.");
-      awaitingObjectDetection = true;  // Enable object detection
+    if (digitalRead(buttonPin) == LOW) {
+        lastActivityTime = millis();
+        if (!measurementMode) {
+            Serial.println("Entering measurement mode...");
+            measurementMode = true;
+            awaitingObjectDetection = false;
+            measurementStartTime = millis();
+            measurementScreen.showWaitingWithCountdown();
+            lv_refr_now(NULL);
+        } else {
+            Serial.println("Measurement canceled.");
+            measurementMode = false;
+            awaitingObjectDetection = false;
+            exitMeasurementMode();
+        }
     }
-  }
 
-  // Handle object detection in the active measurement phase
-  if (measurementMode && awaitingObjectDetection) {
-    detectObject();
-  }
+    if (measurementMode && !awaitingObjectDetection) {
+        measurementScreen.updateCountdown();
+
+        if (!measurementScreen.isCountdownActive()) {
+            Serial.println("Countdown complete. Transitioning to measurement phase.");
+            awaitingObjectDetection = true;
+        }
+    }
+
+    if (measurementMode && awaitingObjectDetection) {
+        detectObject();
+    }
 }
 
 void exitMeasurementMode() {
@@ -237,7 +252,7 @@ void exitMeasurementMode() {
 
 void detectObject() {
   if (measurementScreen.isCountdownActive() || !awaitingObjectDetection) {
-    return;  // Skip object detection during countdown or when not in measurement phase
+    return;
   }
 
   int sensorValue = analogRead(sensorPin);
@@ -245,17 +260,15 @@ void detectObject() {
 
   if (objectDetected != previousSensorState) {
     lastActivityTime = millis();
+    reminderSystem.resetTimer();  // Reset reminder timer after every measurement attempt
+
     if (objectDetected) {
       Serial.println("Object detected!");
       dataLogger.incrementMeasurement();
 
       // Trigger vibration and flash the screen
-      digitalWrite(20, HIGH);
-      delay(2000);
-      digitalWrite(20,LOW);
-      delay(2000);
-      //vibrate(500);    // Vibrate for 500ms
-      //flashScreen(2);  // Flash the screen twice
+      vibrate(2000);
+      //flashScreen(3);
 
       // Show success screen and start success timer
       measurementScreen.showSuccess();
@@ -314,6 +327,7 @@ void turnOnDisplay() {
   delay(50);
 }
 
+// Probably want to move this to the Measurement screen success fucntion instead so can do this concurrently with showing success screen
 void vibrate(int duration) {
   digitalWrite(vibrationMotorPin, HIGH);
   delay(duration);
@@ -327,4 +341,8 @@ void vibrate(int duration) {
 //     digitalWrite(screenBacklightPin, HIGH);
 //     delay(200);
 //   }
+//   turnOnDisplay();
+//   //lv_scr_load(lv_scr_act());  // Ensure the current LVGL screen is loaded
+//   homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
+//   //lv_refr_now(NULL);
 // }
