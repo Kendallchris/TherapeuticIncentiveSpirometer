@@ -1,46 +1,25 @@
 #include "MeasurementScreen.h"
+#include <Arduino.h>
 
-MeasurementScreen::MeasurementScreen(TFT_eSPI &display, bool &awaitingDetection)
-  : tft(display), awaitingObjectDetection(awaitingDetection), countdown_label(nullptr) {
-  // Constructor initialization
+MeasurementScreen::MeasurementScreen(TFT_eSPI &display, bool &awaitingDetection, bool &showingSuccess, HomeScreen &homeScreen, int vibrationPin)
+  : tft(display), awaitingObjectDetection(awaitingDetection), showingSuccess(showingSuccess), homeScreen(homeScreen), countdown_label(nullptr), countdown_active(false), vibrationMotorPin(vibrationPin) {
 }
 
 void MeasurementScreen::showWaitingWithCountdown() {
   lv_obj_t *screen = lv_obj_create(NULL);
-  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);  // Match screen size
+  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);  
   lv_scr_load(screen);
 
   countdown_label = lv_label_create(screen);
   lv_label_set_text(countdown_label, "Beginning measurement...");
   lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -20);
 
-  countdown_duration = 5;          // Set countdown duration in seconds
-  countdown_active = true;          // Enable countdown state
-  countdown_start = millis();       // Start countdown timer
-  awaitingObjectDetection = false;  // Ensure object detection is disabled during countdown
+  countdown_duration = 5;
+  countdown_active = true;
+  countdown_start = millis();
+  awaitingObjectDetection = false;
 
-  // **Cancel Button (Green) for Countdown**
-  lv_obj_t *cancel_btn = lv_btn_create(screen);
-  lv_obj_set_size(cancel_btn, 120, 50);
-  lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
-  lv_obj_add_event_cb(
-    cancel_btn, [](lv_event_t *e) {
-      digitalWrite(2, LOW);  // Simulate green button press to cancel
-      delay(50);
-      digitalWrite(2, HIGH);
-    },
-    LV_EVENT_CLICKED, NULL);
-
-  lv_obj_t *cancel_label = lv_label_create(cancel_btn);
-  lv_label_set_text(cancel_label, "Cancel");
-  lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);  // Center text
-
-  // Apply Green Style
-  lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);    // Green background
-  lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);                          // Rounded corners
-  lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);  // White text
-
-  lv_refr_now(NULL);  // Refresh screen immediately
+  lv_refr_now(NULL);
 }
 
 void MeasurementScreen::updateCountdown() {
@@ -55,8 +34,7 @@ void MeasurementScreen::updateCountdown() {
       lv_label_set_text(countdown_label, "Waiting for object...");
       countdown_label = nullptr;
       countdown_active = false;
-
-      beginMeasurementPhase();  // Transition to measurement phase
+      beginMeasurementPhase();
     }
   }
 }
@@ -70,41 +48,69 @@ void MeasurementScreen::beginMeasurementPhase() {
   lv_label_set_text(measurement_label, "Waiting for object...\nPress green button to cancel");
   lv_obj_align(measurement_label, LV_ALIGN_CENTER, 0, -20);
 
-  // **Cancel Button (Green) for Active Measurement**
-  lv_obj_t *cancel_btn = lv_btn_create(screen);
-  lv_obj_set_size(cancel_btn, 120, 50);
-  lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
-  lv_obj_add_event_cb(
-    cancel_btn, [](lv_event_t *e) {
-      digitalWrite(2, LOW);  // Simulate green button press to cancel
-      delay(50);
-      digitalWrite(2, HIGH);
-    },
-    LV_EVENT_CLICKED, NULL);
-
-  lv_obj_t *cancel_label = lv_label_create(cancel_btn);
-  lv_label_set_text(cancel_label, "Cancel");
-  lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);  // Center text
-
-  // Apply Green Style
-  lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);    // Green background
-  lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);                          // Rounded corners
-  lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);  // White text
-
-  awaitingObjectDetection = true;  // Enable object detection
-  lv_refr_now(NULL);               // Refresh screen immediately
+  awaitingObjectDetection = true;
+  lv_refr_now(NULL);
 }
 
-void MeasurementScreen::showSuccess() {
+void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageComplete) {
+  Serial.println("[DEBUG] Showing success screen...");
+
+  // Start vibration for entire success screen duration
+  digitalWrite(vibrationMotorPin, HIGH);
+
   lv_obj_t *screen = lv_obj_create(NULL);
-  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);  // Match screen size
+  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
   lv_scr_load(screen);
 
   lv_obj_t *success_label = lv_label_create(screen);
-  lv_label_set_text(success_label, "SUCCESS!");
+
+  // Convert percentage to string ensuring it is a whole number
+  char successText[64];  
+  snprintf(successText, sizeof(successText), "SUCCESS!\n%d completed.\nYou are %d%% at your hourly goal!", 
+           successfulMeasurements, percentageComplete);
+
+  lv_label_set_text(success_label, successText);
   lv_obj_align(success_label, LV_ALIGN_CENTER, 0, 0);
 
-  lv_refr_now(NULL);  // Force immediate refresh
+  lv_refr_now(NULL);
+
+  // Set success screen active
+  showingSuccess = true;
+  Serial.println("[DEBUG] Success screen active.");
+
+  // Create an event listener for button presses to exit immediately
+  lv_obj_t *exit_btn = lv_btn_create(screen);
+  lv_obj_set_size(exit_btn, 150, 60);
+  lv_obj_align(exit_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+  lv_obj_add_event_cb(exit_btn, returnToHomeEventHandler, LV_EVENT_CLICKED, this);
+
+  lv_obj_t *exit_label = lv_label_create(exit_btn);
+  lv_label_set_text(exit_label, "OK");
+  lv_obj_align(exit_label, LV_ALIGN_CENTER, 0, 0);
+
+  // Style the button
+  lv_obj_set_style_bg_color(exit_btn, lv_color_hex(0xE74C3C), LV_PART_MAIN);
+  lv_obj_set_style_radius(exit_btn, 10, LV_PART_MAIN);
+  lv_obj_set_style_text_color(exit_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+}
+
+// Event handler for button press to return home instantly
+void MeasurementScreen::returnToHomeEventHandler(lv_event_t * e) {
+  Serial.println("[DEBUG] Button pressed, returning to home...");
+  MeasurementScreen *screen = static_cast<MeasurementScreen *>(lv_event_get_user_data(e));
+  screen->clearSuccessState();
+}
+
+// Clears the success state, resets showingSuccess flag, stops vibration, and transitions to home
+void MeasurementScreen::clearSuccessState() {
+  Serial.println("[DEBUG] Clearing success state and transitioning to home screen...");
+
+  // Stop vibration when exiting success screen
+  digitalWrite(vibrationMotorPin, LOW);
+
+  showingSuccess = false;
+  homeScreen.show(0);
+  lv_refr_now(NULL);
 }
 
 void MeasurementScreen::showNoObject() {
