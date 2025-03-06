@@ -1,9 +1,12 @@
 #include "ResetConfirmation.h"
+#include <Arduino.h>  // for Serial if needed
 
 bool ResetConfirmation::isActive = false;  // Initialize the flag
 
 ResetConfirmation::ResetConfirmation(TFT_eSPI &display, DataLogger &logger)
   : tft(display), dataLogger(logger) {}
+
+extern void resetAllScreenFlags();
 
 void ResetConfirmation::show() {
   isActive = true;  // Mark the screen as active
@@ -61,15 +64,21 @@ void ResetConfirmation::confirmReset() {
   dataLogger.resetData();
   isActive = false;
 
+  Serial.println("[DEBUG] Confirm reset, resetting all flags...");
+  resetAllScreenFlags();
+
   HomeScreen homeScreen(tft);
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
+  homeScreen.show();
   lv_refr_now(NULL);
 }
 
 void ResetConfirmation::cancelReset() {
   isActive = false;
 
+  Serial.println("[DEBUG] Cancel reset, resetting all flags...");
+  resetAllScreenFlags();
+
   HomeScreen homeScreen(tft);
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
+  homeScreen.show();
   lv_refr_now(NULL);
 }

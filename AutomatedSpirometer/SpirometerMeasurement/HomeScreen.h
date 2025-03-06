@@ -6,7 +6,7 @@
 class HomeScreen {
 public:
   HomeScreen(TFT_eSPI &display);  // Constructor that takes the display instance
-  void show(int currentHour);
+  void show();
 
 private:
   TFT_eSPI &tft;  // Reference to the display instance

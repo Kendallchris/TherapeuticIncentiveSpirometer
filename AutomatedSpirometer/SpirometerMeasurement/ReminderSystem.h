@@ -12,7 +12,7 @@ public:
   ReminderSystem(int motorPin, int backlightPin, int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger);
   void resetTimer();
   void checkReminder();
-  void dismissReminder();  
+  void dismissReminder();
 
 private:
   int vibrationMotorPin;

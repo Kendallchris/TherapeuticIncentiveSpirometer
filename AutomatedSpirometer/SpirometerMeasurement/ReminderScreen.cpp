@@ -1,9 +1,12 @@
 #include "ReminderScreen.h"
+#include <Arduino.h>  // for Serial
 
 bool ReminderScreen::isActive = false;
 
 ReminderScreen::ReminderScreen(TFT_eSPI &display, DataLogger &logger)
   : tft(display), dataLogger(logger), screen(nullptr) {}
+
+extern void resetAllScreenFlags();
 
 void ReminderScreen::show() {
   isActive = true;
@@ -38,10 +41,13 @@ void ReminderScreen::dismissReminder() {
   isActive = false;
 
   Serial.println("Reloading Home Screen...");
-  HomeScreen homeScreen(tft);
-  homeScreen.show(dataLogger.getCurrentHourMeasurements(true));
+  Serial.println("[DEBUG] Dismissing reminder, resetting all flags...");
+  resetAllScreenFlags();
 
-  lv_scr_load(lv_scr_act());  
+  HomeScreen homeScreen(tft);
+  homeScreen.show();
+
+  lv_scr_load(lv_scr_act());
   lv_refr_now(NULL);
 }
 

@@ -13,9 +13,16 @@ public:
   void beginMeasurementPhase();
   void showSuccess(int successfulMeasurements, int percentageComplete);
   void showNoObject();
-  void clearSuccessState();  
+  void clearSuccessState();
 
-  bool isCountdownActive() const { return countdown_active; }
+  // The new function for an unrecorded measurement beyond 10
+  void showUnrecordedSuccess();
+  static void unrecordedOkEventHandler(lv_event_t *e);
+  void dismissUnrecorded();
+
+  bool isCountdownActive() const {
+    return countdown_active;
+  }
 
 private:
   TFT_eSPI &tft;
@@ -28,7 +35,7 @@ private:
   int countdown_duration = 10;
   int vibrationMotorPin;  // Added for vibration control
 
-  static void returnToHomeEventHandler(lv_event_t * e);
+  static void returnToHomeEventHandler(lv_event_t *e);
 };
 
 #endif
