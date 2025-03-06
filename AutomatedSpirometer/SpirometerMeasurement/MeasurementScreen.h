@@ -1,17 +1,41 @@
 #ifndef MEASUREMENTSCREEN_H
 #define MEASUREMENTSCREEN_H
 
-#include <TFT_eSPI.h>  // Include the TFT library
+#include <TFT_eSPI.h>
+#include <lvgl.h>
+#include "HomeScreen.h"
 
 class MeasurementScreen {
 public:
-    MeasurementScreen(TFT_eSPI &display);    // Constructor that takes the display instance
-    void showWaitingWithCountdown();         // Show "Waiting for object..." screen with countdown
-    void showSuccess();                      // Show "SUCCESS!" screen
-    void showNoObject();                     // Show "No object detected." screen
+  MeasurementScreen(TFT_eSPI &display, bool &awaitingDetection, bool &showingSuccess, HomeScreen &homeScreen, int vibrationPin);
+  void showWaitingWithCountdown();
+  void updateCountdown();
+  void beginMeasurementPhase();
+  void showSuccess(int successfulMeasurements, int percentageComplete);
+  void showNoObject();
+  void clearSuccessState();
+
+  // The new function for an unrecorded measurement beyond 10
+  void showUnrecordedSuccess();
+  static void unrecordedOkEventHandler(lv_event_t *e);
+  void dismissUnrecorded();
+
+  bool isCountdownActive() const {
+    return countdown_active;
+  }
 
 private:
-    TFT_eSPI &tft;                           // Reference to the display instance
+  TFT_eSPI &tft;
+  bool &awaitingObjectDetection;
+  bool &showingSuccess;
+  HomeScreen &homeScreen;
+  lv_obj_t *countdown_label;
+  unsigned long countdown_start;
+  bool countdown_active;
+  int countdown_duration = 10;
+  int vibrationMotorPin;  // Added for vibration control
+
+  static void returnToHomeEventHandler(lv_event_t *e);
 };
 
 #endif

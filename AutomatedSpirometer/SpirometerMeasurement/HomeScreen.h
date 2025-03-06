@@ -5,11 +5,11 @@
 
 class HomeScreen {
 public:
-    HomeScreen(TFT_eSPI &display);                 // Constructor that takes the display instance
-    void show(int currentHour, int previousHour);  // Function to display both counts
+  HomeScreen(TFT_eSPI &display);  // Constructor that takes the display instance
+  void show();
 
 private:
-    TFT_eSPI &tft;                                 // Reference to the display instance
+  TFT_eSPI &tft;  // Reference to the display instance
 };
 
 #endif
