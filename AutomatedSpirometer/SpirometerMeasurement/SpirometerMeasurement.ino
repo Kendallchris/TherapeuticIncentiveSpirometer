@@ -1,7 +1,5 @@
 // TODO:
-//       Whenever a new screen is loaded, make sure all other screen flags are set to false
 //       Adjust buzzing logic for reminder to allow for motor to work better
-//       Change data logger so that it only stores at MOST 10 measurements
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
