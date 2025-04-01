@@ -13,11 +13,11 @@
 
 // Pin definitions
 const int ledPin = 13;         // Pin for the onboard LED
-const int sensorPin = 14;      // Analog pin connected to the TCRT5000 sensor
-const int buttonPin = 2;       // GPIO2 for measurement mode button (green)
-const int resetButtonPin = 3;  // GPIO3 for wake-up button (red)
-const int screenBacklightPin = 4;
-const int vibrationMotorPin = 20;
+const int sensorPin = 16;      // Analog pin connected to the TCRT5000 sensor
+const int buttonPin = 15;       // GPIO2 for measurement mode button (green)
+const int resetButtonPin = 14;  // GPIO3 for wake-up button (red)
+const int screenBacklightPin = 22;
+const int vibrationMotorPin = 23;
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
