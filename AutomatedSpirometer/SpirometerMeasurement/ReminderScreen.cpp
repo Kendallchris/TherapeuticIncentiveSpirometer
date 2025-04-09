@@ -16,7 +16,10 @@ void ReminderScreen::show() {
   lv_scr_load(screen);
 
   lv_obj_t *message_label = lv_label_create(screen);
+  lv_label_set_long_mode(message_label, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(message_label, 220);
   lv_label_set_text(message_label, "Time to take a measurement!");
+  lv_obj_set_style_text_align(message_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_align(message_label, LV_ALIGN_CENTER, 0, -40);
 
   lv_obj_t *dismiss_btn = lv_btn_create(screen);
@@ -27,6 +30,7 @@ void ReminderScreen::show() {
 
   lv_obj_t *dismiss_label = lv_label_create(dismiss_btn);
   lv_label_set_text(dismiss_label, "Dismiss");
+  lv_obj_align(dismiss_label, LV_ALIGN_CENTER, 0, 0);
 
   lv_obj_set_style_bg_color(dismiss_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
   lv_obj_set_style_radius(dismiss_btn, 10, LV_PART_MAIN);

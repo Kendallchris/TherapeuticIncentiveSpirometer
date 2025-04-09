@@ -18,13 +18,16 @@ void HomeScreen::show() {
 
   // Add label for instructions
   lv_obj_t *instruction_label = lv_label_create(screen);
+  lv_label_set_long_mode(instruction_label, LV_LABEL_LONG_WRAP);  // allow wrapping
+  lv_obj_set_width(instruction_label, 220);                       // max width slightly under screen
   lv_label_set_text(instruction_label, "Keep it up! Get Those Measurements in!");
-  lv_obj_align(instruction_label, LV_ALIGN_TOP_MID, 0, 10);
+  lv_obj_set_style_text_align(instruction_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);  // center text
+  lv_obj_align(instruction_label, LV_ALIGN_TOP_MID, 0, 10);                            // center container
 
   // **Measurement Count Display (Dominant Box)**
   lv_obj_t *count_box = lv_obj_create(screen);
   lv_obj_set_size(count_box, 120, 80);
-  lv_obj_align(count_box, LV_ALIGN_CENTER, 0, -40);
+  lv_obj_align(count_box, LV_ALIGN_CENTER, 0, -20);
 
   lv_obj_set_style_bg_color(count_box, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
   lv_obj_set_style_border_color(count_box, lv_color_hex(0x000000), LV_PART_MAIN);
