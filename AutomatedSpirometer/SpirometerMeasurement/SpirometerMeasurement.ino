@@ -260,6 +260,7 @@ void handleMeasurementMode() {
       measurementMode = true;
       awaitingObjectDetection = false;
       measurementStartTime = millis();
+      previousSensorState = false; // After a successfull measurement this will be true - want to set back to false before assessing next measurement
 
       measurementScreen.showWaitingWithCountdown();
       lv_refr_now(NULL);

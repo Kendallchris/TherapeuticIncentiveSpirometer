@@ -22,7 +22,7 @@ void ResetConfirmation::show() {
   // **Confirm Button (Red)**
   lv_obj_t *confirm_btn = lv_btn_create(screen);
   lv_obj_set_size(confirm_btn, 100, 50);
-  lv_obj_align(confirm_btn, LV_ALIGN_CENTER, -60, 40);
+  lv_obj_align(confirm_btn, LV_ALIGN_CENTER, 60, 40);
   lv_obj_add_event_cb(
     confirm_btn, [](lv_event_t *e) {
       ResetConfirmation *self = static_cast<ResetConfirmation *>(lv_event_get_user_data(e));
@@ -41,7 +41,7 @@ void ResetConfirmation::show() {
   // **Cancel Button (Green)**
   lv_obj_t *cancel_btn = lv_btn_create(screen);
   lv_obj_set_size(cancel_btn, 100, 50);
-  lv_obj_align(cancel_btn, LV_ALIGN_CENTER, 60, 40);
+  lv_obj_align(cancel_btn, LV_ALIGN_CENTER, -60, 40);
   lv_obj_add_event_cb(
     cancel_btn, [](lv_event_t *e) {
       ResetConfirmation *self = static_cast<ResetConfirmation *>(lv_event_get_user_data(e));

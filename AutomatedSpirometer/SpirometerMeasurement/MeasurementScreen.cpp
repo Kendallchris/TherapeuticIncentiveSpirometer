@@ -4,6 +4,7 @@
 #include <lvgl.h>
 
 extern void resetAllScreenFlags();
+extern void exitMeasurementMode();
 
 MeasurementScreen::MeasurementScreen(
   TFT_eSPI &display,
@@ -120,8 +121,7 @@ void MeasurementScreen::clearSuccessState() {
   digitalWrite(vibrationMotorPin, LOW);
   showingSuccess = false;
 
-  homeScreen.show();
-  lv_refr_now(NULL);
+  exitMeasurementMode();
 }
 
 void MeasurementScreen::showNoObject() {

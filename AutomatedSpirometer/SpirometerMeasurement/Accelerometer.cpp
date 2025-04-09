@@ -64,13 +64,6 @@ bool Accelerometer::detectTilt() {
   int16_t y = Wire.read() | (Wire.read() << 8);
   int16_t z = Wire.read() | (Wire.read() << 8);
 
-  Serial.print("Current Orientation - X: ");
-  Serial.print(x);
-  Serial.print(", Y: ");
-  Serial.print(y);
-  Serial.print(", Z: ");
-  Serial.println(z);
-
   float dotProduct = (x * refX) + (y * refY) + (z * refZ);
   float magnitudeCurrent = sqrt((float)(x * x + y * y + z * z));
   float magnitudeRef = sqrt((float)(refX * refX + refY * refY + refZ * refZ));
@@ -83,9 +76,6 @@ bool Accelerometer::detectTilt() {
   float cosTheta = dotProduct / (magnitudeCurrent * magnitudeRef);
   cosTheta = constrain(cosTheta, -1.0, 1.0);
   float angle = acos(cosTheta) * 180.0 / PI;
-
-  Serial.print("Delta Angle: ");
-  Serial.println(angle);
 
   return (angle > tiltAngleThreshold);
 }
