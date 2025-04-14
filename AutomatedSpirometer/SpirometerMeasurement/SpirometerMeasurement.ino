@@ -1,23 +1,25 @@
 // TODO:
-//       Adjust buzzing logic for reminder to allow for motor to work better
+//       Utilize Vibrate() instead of explicitly passing and digitalwriting to activate vibration motor
+//       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
-#include <Wire.h>         // Include Wire library for I2C communication
-#include "HomeScreen.h"   // Include HomeScreen for managing the UI
-#include "DataLogger.h"   // Include DataLogger for managing measurements
+#include <Wire.h>        // Include Wire library for I2C communication
+#include "HomeScreen.h"  // Include HomeScreen for managing the UI
+#include "DataLogger.h"  // Include DataLogger for managing measurements
 #include "MeasurementScreen.h"
 #include "Accelerometer.h"
 #include "ResetConfirmation.h"
 #include "ReminderSystem.h"
 
 // Pin definitions
-const int ledPin = 13;         // Pin for the onboard LED
-const int sensorPin = 16;      // Analog pin connected to the TCRT5000 sensor
+const int ledPin = 13;          // Pin for the onboard LED
+const int sensorPin = 16;       // Analog pin connected to the TCRT5000 sensor
 const int buttonPin = 15;       // GPIO2 for measurement mode button (green)
 const int resetButtonPin = 14;  // GPIO3 for wake-up button (red)
 const int screenBacklightPin = 22;
 const int vibrationMotorPin = 23;
+const int buzzerPin = 9;  // using PIEZO BUZZER TRANSDUCER
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
@@ -34,8 +36,15 @@ const int vibrationMotorPin = 23;
 #define TFT_WIDTH ROTATED_WIDTH
 #define TFT_HEIGHT ROTATED_HEIGHT
 
+#define MAX_TONE_SEQUENCE_LENGTH 20
+
 // Angle threshold for tilt detection (in degrees)
 const float tiltAngleThreshold = 30.0;
+
+struct ToneStep {
+  int frequency;
+  int duration;
+};
 
 TFT_eSPI tft = TFT_eSPI();
 lv_color_t buf[TFT_WIDTH * 20];
@@ -82,6 +91,15 @@ ReminderSystem reminderSystem(
   dataLogger);
 ReminderScreen reminderScreen(tft, dataLogger);
 
+// instance and global variables for buzzer
+ToneStep toneSequence[MAX_TONE_SEQUENCE_LENGTH];
+int toneCount = 0;
+int currentToneIndex = 0;
+bool tonePlaying = false;
+unsigned long toneStartTime = 0;
+unsigned long interToneDelay = 30;  // Delay between tones
+bool inInterDelay = false;
+
 // Forward declarations
 void enterSleepMode();
 void wakeUp();
@@ -92,6 +110,10 @@ void handleMeasurementMode();
 void exitMeasurementMode();
 void detectObject();
 void vibrate(int duration);
+void successTone();
+void measurementsCompleteTone();
+void reminderTone();
+void stopTone();
 
 // Use a safer "partial reset" that carefully sets only certain flags, if truly needed.
 void resetAllScreenFlags() {
@@ -120,11 +142,15 @@ void setup() {
 
   pinMode(screenBacklightPin, OUTPUT);
   digitalWrite(screenBacklightPin, HIGH);
+
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(resetButtonPin, INPUT_PULLUP);
 
   pinMode(vibrationMotorPin, OUTPUT);
   digitalWrite(vibrationMotorPin, LOW);
+
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
 
   // TFT init
   tft.init();
@@ -134,12 +160,6 @@ void setup() {
   Serial.println("Initializing Accelerometer...");
   accelerometer.initialize();
   accelerometer.saveReferenceOrientation();
-
-  // Debug dimensions
-  Serial.print("Runtime TFT_WIDTH: ");
-  Serial.println(TFT_WIDTH);
-  Serial.print("Runtime TFT_HEIGHT: ");
-  Serial.println(TFT_HEIGHT);
 
   // LVGL init
   lv_init();
@@ -161,6 +181,7 @@ void setup() {
 void loop() {
   lv_timer_handler();
   lv_task_handler();
+  updateToneSequence();
   delay(5);
 
   if (isAsleep) {
@@ -260,7 +281,7 @@ void handleMeasurementMode() {
       measurementMode = true;
       awaitingObjectDetection = false;
       measurementStartTime = millis();
-      previousSensorState = false; // After a successfull measurement this will be true - want to set back to false before assessing next measurement
+      previousSensorState = false;  // After a successfull measurement this will be true - want to set back to false before assessing next measurement
 
       measurementScreen.showWaitingWithCountdown();
       lv_refr_now(NULL);
@@ -394,4 +415,93 @@ void vibrate(int duration) {
   digitalWrite(vibrationMotorPin, HIGH);
   delay(duration);
   digitalWrite(vibrationMotorPin, LOW);
+}
+
+void queueTone(int frequency, int duration) {
+  if (toneCount < MAX_TONE_SEQUENCE_LENGTH) {
+    toneSequence[toneCount++] = {frequency, duration};
+  }
+}
+
+void clearToneQueue() {
+  tonePlaying = false;
+  toneCount = 0;
+  currentToneIndex = 0;
+  inInterDelay = false;
+  noTone(buzzerPin);
+}
+
+void startToneSequence() {
+  if (toneCount > 0) {
+    tonePlaying = true;
+    currentToneIndex = 0;
+    toneStartTime = millis();
+    tone(buzzerPin, toneSequence[0].frequency);
+  }
+}
+
+void updateToneSequence() {
+  if (!tonePlaying) return;
+
+  unsigned long now = millis();
+  ToneStep &step = toneSequence[currentToneIndex];
+
+  if (!inInterDelay && now - toneStartTime >= (unsigned long)step.duration) {
+    noTone(buzzerPin);
+    inInterDelay = true;
+    toneStartTime = now;
+  } else if (inInterDelay && now - toneStartTime >= interToneDelay) {
+    currentToneIndex++;
+    if (currentToneIndex < toneCount) {
+      tone(buzzerPin, toneSequence[currentToneIndex].frequency);
+      toneStartTime = now;
+      inInterDelay = false;
+    } else {
+      tonePlaying = false;
+      toneCount = 0;
+      inInterDelay = false;
+      noTone(buzzerPin);
+    }
+  }
+}
+
+// Public API functions
+void successTone() {
+  clearToneQueue();
+  queueTone(784, 200);
+  queueTone(880, 200);
+  queueTone(988, 200);
+  queueTone(1047, 300);
+  queueTone(784, 200);
+  queueTone(1319, 300);
+  queueTone(1175, 200);
+  queueTone(1568, 400);
+  startToneSequence();
+}
+
+void measurementsCompleteTone() {
+  clearToneQueue();
+  successTone();
+  queueTone(0, 200);  // Rest
+  queueTone(784, 200);
+  queueTone(880, 200);
+  queueTone(988, 200);
+  queueTone(1047, 300);
+  queueTone(784, 200);
+  queueTone(1319, 300);
+  queueTone(1175, 200);
+  queueTone(1568, 400);
+  startToneSequence();
+}
+
+void reminderTone() {
+  clearToneQueue();
+  for (int i = 0; i < 3; i++) queueTone(1000, 150);
+  queueTone(0, 300);  // Pause
+  for (int i = 0; i < 2; i++) queueTone(1200, 120);
+  startToneSequence();
+}
+
+void stopTone() {
+  clearToneQueue();
 }

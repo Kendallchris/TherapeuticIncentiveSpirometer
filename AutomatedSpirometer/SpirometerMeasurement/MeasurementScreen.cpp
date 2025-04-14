@@ -5,6 +5,9 @@
 
 extern void resetAllScreenFlags();
 extern void exitMeasurementMode();
+extern void successTone();
+extern void measurementsCompleteTone();
+extern void stopTone();
 
 MeasurementScreen::MeasurementScreen(
   TFT_eSPI &display,
@@ -112,15 +115,30 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
   // Start vibration for entire success screen duration
   digitalWrite(vibrationMotorPin, HIGH);
 
+  if (successfulMeasurements == 10) {
+    measurementsCompleteTone();  // 🎵 For completed session
+  } else {
+    successTone();  // 🎵 For regular success
+  }
+
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
   lv_scr_load(screen);
 
-  lv_obj_t *success_label = lv_label_create(screen);
-  char successText[64];
+  // Build base message
+  char successText[128];
   snprintf(successText, sizeof(successText),
            "SUCCESS!\n%d completed.\nYou are %d%% at your hourly goal!",
            successfulMeasurements, percentageComplete);
+
+  // If it's the 10th success, add extra reminder message
+  if (successfulMeasurements == 10) {
+    strncat(successText,
+            "\n\nGoal reached!\nPlease reset data before your next measurement to continue recording.",
+            sizeof(successText) - strlen(successText) - 1);
+  }
+
+  lv_obj_t *success_label = lv_label_create(screen);
   lv_label_set_long_mode(success_label, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(success_label, 220);
   lv_label_set_text(success_label, successText);
@@ -157,6 +175,7 @@ void MeasurementScreen::returnToHomeEventHandler(lv_event_t *e) {
 void MeasurementScreen::clearSuccessState() {
   Serial.println("[DEBUG] Clearing success state and transitioning to home screen...");
   digitalWrite(vibrationMotorPin, LOW);
+  stopTone();
   showingSuccess = false;
 
   exitMeasurementMode();

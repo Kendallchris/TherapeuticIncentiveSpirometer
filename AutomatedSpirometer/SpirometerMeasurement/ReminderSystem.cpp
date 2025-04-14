@@ -3,6 +3,8 @@
 
 extern void turnOnDisplay();
 extern void wakeUp();
+extern void reminderTone();
+extern void stopTone();
 
 ReminderSystem::ReminderSystem(int motorPin, int backlightPin, int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
   : vibrationMotorPin(motorPin), screenBacklightPin(backlightPin), buttonPin(buttonPin),
@@ -60,6 +62,8 @@ void ReminderSystem::dismissReminder() {
 void ReminderSystem::activateReminderAlert(int flashes, int vibrationDuration) {
   Serial.println("Activating reminder alert...");
 
+  reminderTone();
+
   for (int i = 0; i < flashes; i++) {
     digitalWrite(screenBacklightPin, LOW);
     digitalWrite(vibrationMotorPin, HIGH);
@@ -70,6 +74,7 @@ void ReminderSystem::activateReminderAlert(int flashes, int vibrationDuration) {
     delay(500);  // Off time to let motor spin down (adjust as desired)
   }
 
+  stopTone();
   Serial.println("Reminder alert completed.");
   turnOnDisplay();
   lv_scr_load(lv_scr_act());
