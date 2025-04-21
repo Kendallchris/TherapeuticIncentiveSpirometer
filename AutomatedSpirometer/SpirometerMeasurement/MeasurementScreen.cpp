@@ -33,6 +33,19 @@ void MeasurementScreen::showWaitingWithCountdown() {
   lv_label_set_text(countdown_label, "Beginning measurement...");
   lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -20);
 
+  // --- Decorative Cancel Button (Bottom Left) ---
+  lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
+  lv_obj_set_size(cancel_btn, 150, 60);
+  lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+
+  lv_obj_t *cancel_label = lv_label_create(cancel_btn);
+  lv_label_set_text(cancel_label, "Cancel");
+  lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);
+
+  lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
+  lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
+  lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+
   countdown_duration = 5;
   countdown_active = true;
   countdown_start = millis();
@@ -42,33 +55,48 @@ void MeasurementScreen::showWaitingWithCountdown() {
 }
 
 void MeasurementScreen::updateCountdown() {
-  if (countdown_label) {
-    int elapsed = (millis() - countdown_start) / 1000;
+  // Fail-safe: cancel if countdown has been running unusually long
+  unsigned long now = millis();
+  if (now - countdown_start > 10000) {
+    Serial.println("[WARN] Countdown exceeded 10s limit. Forcing transition.");
+    countdown_label = nullptr;
+    countdown_active = false;
+    beginMeasurementPhase();
+    return;
+  }
+
+  if (countdown_label && countdown_active) {
+    int elapsed = (now - countdown_start) / 1000;
     int remaining = countdown_duration - elapsed;
 
     if (remaining > 0) {
-      lv_label_set_long_mode(countdown_label, LV_LABEL_LONG_WRAP);
-      lv_obj_set_width(countdown_label, 220);
-      lv_label_set_text_fmt(
-        countdown_label,
-        "Beginning measurement in %d seconds\nPress green button to cancel",
-        remaining);
-      lv_obj_set_style_text_align(countdown_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-      lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -40);
-      lv_refr_now(NULL);
+      static int lastShown = -1;
+      if (remaining != lastShown) {
+        lastShown = remaining;
 
-      // --- Decorative Cancel Button (Bottom Left) ---
-      lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
-      lv_obj_set_size(cancel_btn, 100, 50);
-      lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+        lv_label_set_long_mode(countdown_label, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(countdown_label, 220);
+        lv_label_set_text_fmt(
+          countdown_label,
+          "Beginning measurement in %d seconds\nPress green button to cancel",
+          remaining);
+        lv_obj_set_style_text_align(countdown_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -40);
+        lv_refr_now(NULL);
 
-      lv_obj_t *cancel_label = lv_label_create(cancel_btn);
-      lv_label_set_text(cancel_label, "Cancel");
-      lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);
+        // --- Decorative Cancel Button (Bottom Left) ---
+        lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
+        lv_obj_set_size(cancel_btn, 150, 60);
+        lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
-      lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
-      lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
-      lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+        lv_obj_t *cancel_label = lv_label_create(cancel_btn);
+        lv_label_set_text(cancel_label, "Cancel");
+        lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);
+
+        lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
+        lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
+        lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+      }
     } else {
       lv_label_set_text(countdown_label, "Waiting for object...");
       lv_obj_set_style_text_align(countdown_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -94,7 +122,7 @@ void MeasurementScreen::beginMeasurementPhase() {
 
   // --- Decorative Cancel Button (Bottom Left) ---
   lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
-  lv_obj_set_size(cancel_btn, 100, 50);
+  lv_obj_set_size(cancel_btn, 150, 60);
   lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
   lv_obj_t *cancel_label = lv_label_create(cancel_btn);
@@ -199,10 +227,9 @@ void MeasurementScreen::showNoObject() {
 void MeasurementScreen::showUnrecordedSuccess() {
   Serial.println("[DEBUG] Showing unrecorded success screen...");
 
-  // Vibrate briefly (optional)
+  successTone();
+  // Start vibration for entire success screen duration
   digitalWrite(vibrationMotorPin, HIGH);
-  delay(300);  // short buzz
-  digitalWrite(vibrationMotorPin, LOW);
 
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
@@ -220,7 +247,7 @@ void MeasurementScreen::showUnrecordedSuccess() {
 
   lv_obj_t *ok_btn = lv_btn_create(screen);
   lv_obj_set_size(ok_btn, 150, 60);
-  lv_obj_align(ok_btn, LV_ALIGN_CENTER, 0, -20);
+  lv_obj_align(ok_btn, LV_ALIGN_CENTER, 80, 80);
   lv_obj_add_event_cb(ok_btn, unrecordedOkEventHandler, LV_EVENT_CLICKED, this);
 
   lv_obj_t *ok_label = lv_label_create(ok_btn);
@@ -231,7 +258,7 @@ void MeasurementScreen::showUnrecordedSuccess() {
   lv_obj_set_style_radius(ok_btn, 10, LV_PART_MAIN);
   lv_obj_set_style_text_color(ok_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
-  showingSuccess = true;  // We can reuse the same success-screen logic
+  showingSuccess = true;
   Serial.println("[DEBUG] Unrecorded success screen active.");
 
   lv_refr_now(NULL);

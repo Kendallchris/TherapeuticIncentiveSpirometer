@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
 #include <Wire.h>        // Include Wire library for I2C communication
+// #include <esp_task_wdt.h> // Watch Dog Task (will reset device if times out/freezes up for too long) *couldn't figure out how to get the library to be recognized*
 #include "HomeScreen.h"  // Include HomeScreen for managing the UI
 #include "DataLogger.h"  // Include DataLogger for managing measurements
 #include "MeasurementScreen.h"
@@ -173,6 +174,10 @@ void setup() {
   disp_drv.ver_res = TFT_HEIGHT;
   lv_disp_drv_register(&disp_drv);
 
+  // Setup watchdog task
+  // esp_task_wdt_init(5, true);  // 5 seconds timeout, panic=true (auto reset)
+  // esp_task_wdt_add(NULL);      // Add current task (loop) to watchdog
+
   // Show home screen
   resetAllScreenFlags();
   homeScreen.show();
@@ -181,8 +186,12 @@ void setup() {
 void loop() {
   lv_timer_handler();
   lv_task_handler();
-  updateToneSequence();
-  delay(5);
+
+  updateToneSequence();  // async audio
+
+  if (measurementMode && !awaitingObjectDetection && measurementScreen.isCountdownActive()) {
+    measurementScreen.updateCountdown();
+  }
 
   if (isAsleep) {
     handleWakeup();
@@ -195,8 +204,12 @@ void loop() {
 
   reminderSystem.checkReminder();
 
+  // 🧠 Optional watchdog support
+  // esp_task_wdt_reset();
+
   delay(200);
 }
+
 
 void handleWakeup() {
   if (digitalRead(resetButtonPin) == LOW || digitalRead(buttonPin) == LOW || accelerometer.detectTilt()) {
@@ -316,6 +329,7 @@ void exitMeasurementMode() {
   awaitingObjectDetection = false;
   showingSuccess = false;
 
+  stopTone(); // precaution in case success screen is dismissed indirectly
   homeScreen.show();
   lv_refr_now(NULL);
 }
@@ -441,7 +455,10 @@ void startToneSequence() {
 }
 
 void updateToneSequence() {
-  if (!tonePlaying) return;
+  if (!tonePlaying || !showingSuccess) {
+    stopTone(); // ensures tone stops instantly if screen was closed
+    return;
+  }
 
   unsigned long now = millis();
   ToneStep &step = toneSequence[currentToneIndex];
@@ -496,9 +513,17 @@ void measurementsCompleteTone() {
 
 void reminderTone() {
   clearToneQueue();
-  for (int i = 0; i < 3; i++) queueTone(1000, 150);
-  queueTone(0, 300);  // Pause
-  for (int i = 0; i < 2; i++) queueTone(1200, 120);
+
+  // Rising melody (gentle but noticeable)
+  queueTone(880, 200);   // A5
+  queueTone(988, 200);   // B5
+  queueTone(1047, 250);  // C6
+  queueTone(0, 200);     // Pause
+
+  // Double pulse ending
+  queueTone(1047, 100);  // C6
+  queueTone(1319, 150);  // E6
+
   startToneSequence();
 }
 
