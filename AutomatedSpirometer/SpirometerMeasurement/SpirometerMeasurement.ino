@@ -1,10 +1,11 @@
 // TODO:
 //       Utilize Vibrate() instead of explicitly passing and digitalwriting to activate vibration motor
 //       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
+//       Change buttons - right now a lot of them are setup as actual touchscreen buttons (make just dummy buttons)
 
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #include <lvgl.h>
-#include <Wire.h>        // Include Wire library for I2C communication
+#include <Wire.h>  // Include Wire library for I2C communication
 // #include <esp_task_wdt.h> // Watch Dog Task (will reset device if times out/freezes up for too long) *couldn't figure out how to get the library to be recognized*
 #include "HomeScreen.h"  // Include HomeScreen for managing the UI
 #include "DataLogger.h"  // Include DataLogger for managing measurements
@@ -285,6 +286,9 @@ void handleMeasurementMode() {
     lastActivityTime = millis();
 
     if (!measurementMode) {
+      lastActivityTime = millis();
+      reminderSystem.resetTimer();
+
       Serial.println("Entering measurement mode...");
       // Instead of resetAllScreenFlags(), do partial:
       ResetConfirmation::isActive = false;
@@ -329,7 +333,7 @@ void exitMeasurementMode() {
   awaitingObjectDetection = false;
   showingSuccess = false;
 
-  stopTone(); // precaution in case success screen is dismissed indirectly
+  stopTone();  // precaution in case success screen is dismissed indirectly
   homeScreen.show();
   lv_refr_now(NULL);
 }
@@ -345,9 +349,6 @@ void detectObject() {
 
   // We only react if the sensor state changes
   if (objectDetected != previousSensorState) {
-    lastActivityTime = millis();
-    reminderSystem.resetTimer();
-
     if (objectDetected) {
       Serial.println("Object detected!");
 
@@ -433,7 +434,7 @@ void vibrate(int duration) {
 
 void queueTone(int frequency, int duration) {
   if (toneCount < MAX_TONE_SEQUENCE_LENGTH) {
-    toneSequence[toneCount++] = {frequency, duration};
+    toneSequence[toneCount++] = { frequency, duration };
   }
 }
 
@@ -456,7 +457,7 @@ void startToneSequence() {
 
 void updateToneSequence() {
   if (!tonePlaying || !showingSuccess) {
-    stopTone(); // ensures tone stops instantly if screen was closed
+    stopTone();  // ensures tone stops instantly if screen was closed
     return;
   }
 
