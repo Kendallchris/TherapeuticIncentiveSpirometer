@@ -34,7 +34,8 @@ void MeasurementScreen::showWaitingWithCountdown() {
   lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -20);
 
   // --- Decorative Cancel Button (Bottom Left) ---
-  lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
+  lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
+  lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);  // Ensure it's not interactive
   lv_obj_set_size(cancel_btn, 150, 60);
   lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
@@ -85,7 +86,8 @@ void MeasurementScreen::updateCountdown() {
         lv_refr_now(NULL);
 
         // --- Decorative Cancel Button (Bottom Left) ---
-        lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
+        lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
+        lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_size(cancel_btn, 150, 60);
         lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
@@ -121,7 +123,8 @@ void MeasurementScreen::beginMeasurementPhase() {
   lv_obj_align(measurement_label, LV_ALIGN_CENTER, 0, -40);
 
   // --- Decorative Cancel Button (Bottom Left) ---
-  lv_obj_t *cancel_btn = lv_btn_create(lv_scr_act());
+  lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
+  lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_size(cancel_btn, 150, 60);
   lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
