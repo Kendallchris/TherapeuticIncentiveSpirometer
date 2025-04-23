@@ -65,8 +65,7 @@ bool showingSuccess = false;
 // Timer variables
 unsigned long lastActivityTime = 0;
 unsigned long lastResetTime = 0;
-const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
-const unsigned long hourDuration = 3600000;
+const unsigned long sleepDelay = 120000;  // 120 seconds inactivity
 const unsigned long detectionDelay = 5000;
 unsigned long measurementStartTime = 0;
 const unsigned long measurementTimeout = 60000;
@@ -324,6 +323,14 @@ void handleMeasurementMode() {
   // If we are awaiting detection, check the sensor
   if (measurementMode && awaitingObjectDetection) {
     detectObject();
+
+    // Timeout handling if object not detected after measurementTimeout
+    if (millis() - measurementStartTime > measurementTimeout) {
+      Serial.println("[TIMEOUT] Measurement timeout. No object detected. Exiting measurement mode.");
+      measurementScreen.showNoObject();
+      exitMeasurementMode();
+      return;
+    }
   }
 }
 
