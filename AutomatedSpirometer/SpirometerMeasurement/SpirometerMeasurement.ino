@@ -3,12 +3,12 @@
 //       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
 //       Change buttons - right now a lot of them are setup as actual touchscreen buttons (make just dummy buttons)
 
-#include <TFT_eSPI.h>  // Include the TFT_eSPI library
+#include <TFT_eSPI.h>
 #include <lvgl.h>
 #include <Wire.h>  // Include Wire library for I2C communication
 // #include <esp_task_wdt.h> // Watch Dog Task (will reset device if times out/freezes up for too long) *couldn't figure out how to get the library to be recognized*
-#include "HomeScreen.h"  // Include HomeScreen for managing the UI
-#include "DataLogger.h"  // Include DataLogger for managing measurements
+#include "HomeScreen.h"
+#include "DataLogger.h"
 #include "MeasurementScreen.h"
 #include "Accelerometer.h"
 #include "ResetConfirmation.h"
@@ -17,11 +17,11 @@
 // Pin definitions
 const int ledPin = 13;          // Pin for the onboard LED
 const int sensorPin = 16;       // Analog pin connected to the TCRT5000 sensor
-const int buttonPin = 15;       // GPIO2 for measurement mode button (green)
-const int resetButtonPin = 14;  // GPIO3 for wake-up button (red)
+const int buttonPin = 15;       // Measurement mode button (green)
+const int resetButtonPin = 14;  // For wake-up button (red)
 const int screenBacklightPin = 22;
 const int vibrationMotorPin = 23;
-const int buzzerPin = 9;  // using PIEZO BUZZER TRANSDUCER
+const int buzzerPin = 9;  // Using PIEZO BUZZER TRANSDUCER
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
@@ -185,7 +185,7 @@ void setup() {
 
 void loop() {
   lv_timer_handler();
-  lv_task_handler();
+  //lv_task_handler();
 
   updateToneSequence();  // async audio
 
@@ -312,7 +312,13 @@ void handleMeasurementMode() {
 
   // If measurement mode is on but we haven't started object detection yet, keep countdown updated
   if (measurementMode && !awaitingObjectDetection) {
-    measurementScreen.updateCountdown();
+    static unsigned long lastTick = 0;
+    if (measurementMode && !awaitingObjectDetection) {
+      if (millis() - lastTick >= 1000) {  // 1 s cadence
+        measurementScreen.updateCountdown();
+        lastTick = millis();
+      }
+    }
     // Once countdown is finished
     if (!measurementScreen.isCountdownActive()) {
       Serial.println("Countdown complete. Now awaiting object detection...");

@@ -58,8 +58,8 @@ void MeasurementScreen::showWaitingWithCountdown() {
 void MeasurementScreen::updateCountdown() {
   // Fail-safe: cancel if countdown has been running unusually long
   unsigned long now = millis();
-  if (now - countdown_start > 10000) {
-    Serial.println("[WARN] Countdown exceeded 10s limit. Forcing transition.");
+  if (now - countdown_start > 6000) {
+    Serial.println("[WARN] Countdown exceeded 6s limit. Forcing transition.");
     countdown_label = nullptr;
     countdown_active = false;
     beginMeasurementPhase();
