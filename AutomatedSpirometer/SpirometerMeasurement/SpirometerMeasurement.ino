@@ -469,10 +469,10 @@ void startToneSequence() {
 }
 
 void updateToneSequence() {
-  if (!tonePlaying || !showingSuccess) {
-    stopTone();  // ensures tone stops instantly if screen was closed
-    return;
-  }
+  // if (!tonePlaying || !showingSuccess) {
+  //   stopTone();  // ensures tone stops instantly if screen was closed
+  //   return;
+  // }
 
   unsigned long now = millis();
   ToneStep &step = toneSequence[currentToneIndex];

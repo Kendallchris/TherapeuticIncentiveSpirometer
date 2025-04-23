@@ -64,17 +64,16 @@ void ReminderSystem::activateReminderAlert(int flashes, int vibrationDuration) {
 
   reminderTone();
 
-  for (int i = 0; i < flashes; i++) {
-    digitalWrite(screenBacklightPin, LOW);
-    digitalWrite(vibrationMotorPin, HIGH);
-    delay(vibrationDuration);
+  // for (int i = 0; i < flashes; i++) {
+  //   digitalWrite(screenBacklightPin, LOW);
+  //   digitalWrite(vibrationMotorPin, HIGH);
+  //   delay(vibrationDuration);
 
-    digitalWrite(screenBacklightPin, HIGH);
-    digitalWrite(vibrationMotorPin, LOW);
-    delay(500);  // Off time to let motor spin down (adjust as desired)
-  }
+  //   digitalWrite(screenBacklightPin, HIGH);
+  //   digitalWrite(vibrationMotorPin, LOW);
+  //   delay(500);  // Off time to let motor spin down (adjust as desired)
+  // }
 
-  stopTone();
   Serial.println("Reminder alert completed.");
   turnOnDisplay();
   lv_scr_load(lv_scr_act());
