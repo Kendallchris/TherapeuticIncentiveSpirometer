@@ -1,4 +1,5 @@
 #include "ReminderSystem.h"
+#include "Effects.h"
 #include <Arduino.h>  // for Serial
 
 extern void turnOnDisplay();
@@ -29,7 +30,23 @@ void ReminderSystem::checkReminder() {
     return;
   }
 
-  if (millis() - lastActivityTime >= reminderInterval) {
+  // Only show ReminderScreen if flashing is done *AND* reminder was actually triggered
+  if (reminderTriggered && !Effects::isScreenFlashing()) {
+    Serial.println("Flashing complete. Now showing reminder screen.");
+
+    reminderTriggered = false;  // ✅ Reset flag after using it
+
+    resetAllScreenFlags();
+    ReminderScreen::isActive = true;
+    reminderScreen.show();
+    lv_scr_load(lv_scr_act());
+    lv_refr_now(NULL);
+
+    turnOnDisplay();
+  }
+
+  // Timer check
+  if (millis() - lastActivityTime >= reminderInterval && !Effects::isScreenFlashing()) {
     triggerReminder();
     resetTimer();
   }
@@ -42,16 +59,17 @@ void ReminderSystem::triggerReminder() {
     wakeUp();
   }
 
-  // Example: 3 "flashes" each 1000ms on, 500ms off
-  activateReminderAlert(3, 1000);  // We'll modify the function so the motor is on for 1s and off for 0.5s
+  reminderTriggered = true;
 
-  Serial.println("Displaying reminder screen now...");
-  Serial.println("[DEBUG] Setting all other screen flags to false before showing reminder...");
-  resetAllScreenFlags();
-  ReminderScreen::isActive = true;
+  // --- Start flashing first ---
+  reminderTone();
+  Effects::startVibration(3, 1000, 500);
+  Effects::startScreenFlash(3, 1000, 500);
 
-  reminderScreen.show();
+  // Wait until flashing is complete to show the ReminderScreen
 }
+
+
 
 void ReminderSystem::dismissReminder() {
   Serial.println("Reminder dismissed via hardware button.");
@@ -63,18 +81,10 @@ void ReminderSystem::activateReminderAlert(int flashes, int vibrationDuration) {
   Serial.println("Activating reminder alert...");
 
   reminderTone();
+  Effects::startVibration(flashes, vibrationDuration, 500);
+  Effects::startScreenFlash(flashes, vibrationDuration, 500);
 
-  // for (int i = 0; i < flashes; i++) {
-  //   digitalWrite(screenBacklightPin, LOW);
-  //   digitalWrite(vibrationMotorPin, HIGH);
-  //   delay(vibrationDuration);
-
-  //   digitalWrite(screenBacklightPin, HIGH);
-  //   digitalWrite(vibrationMotorPin, LOW);
-  //   delay(500);  // Off time to let motor spin down (adjust as desired)
-  // }
-
-  Serial.println("Reminder alert completed.");
+  Serial.println("Reminder alert sequence activated.");
   turnOnDisplay();
   lv_scr_load(lv_scr_act());
   lv_refr_now(NULL);

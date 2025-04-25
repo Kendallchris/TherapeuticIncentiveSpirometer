@@ -1,7 +1,6 @@
 // TODO:
 //       Utilize Vibrate() instead of explicitly passing and digitalwriting to activate vibration motor
 //       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
-//       Change buttons - right now a lot of them are setup as actual touchscreen buttons (make just dummy buttons)
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
@@ -13,6 +12,7 @@
 #include "Accelerometer.h"
 #include "ResetConfirmation.h"
 #include "ReminderSystem.h"
+#include "Effects.h"
 
 // Pin definitions
 const int ledPin = 13;          // Pin for the onboard LED
@@ -153,6 +153,8 @@ void setup() {
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
 
+  Effects::begin(vibrationMotorPin, screenBacklightPin);
+
   // TFT init
   tft.init();
   tft.setRotation(1);
@@ -188,6 +190,8 @@ void loop() {
   //lv_task_handler();
 
   updateToneSequence();  // async audio
+  Effects::updateVibration();
+  Effects::updateScreenFlash();
 
   if (measurementMode && !awaitingObjectDetection && measurementScreen.isCountdownActive()) {
     measurementScreen.updateCountdown();

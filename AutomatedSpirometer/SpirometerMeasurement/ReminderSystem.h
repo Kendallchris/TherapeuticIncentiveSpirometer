@@ -19,8 +19,10 @@ private:
   int screenBacklightPin;
   int buttonPin;  // Store button pin reference
   bool &isAsleep;
+  bool reminderTriggered = false;
   unsigned long lastActivityTime;
-  const unsigned long reminderInterval = 600000;
+  // const unsigned long reminderInterval = 600000;
+  const unsigned long reminderInterval = 30000;
 
   TFT_eSPI &tft;
   DataLogger &dataLogger;
