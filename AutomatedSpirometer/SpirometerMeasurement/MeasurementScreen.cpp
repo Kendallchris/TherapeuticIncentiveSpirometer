@@ -1,13 +1,11 @@
 #include "MeasurementScreen.h"
 #include "HomeScreen.h"
+#include "Effects.h"
 #include <Arduino.h>
 #include <lvgl.h>
 
 extern void resetAllScreenFlags();
 extern void exitMeasurementMode();
-extern void successTone();
-extern void measurementsCompleteTone();
-extern void stopTone();
 
 MeasurementScreen::MeasurementScreen(
   TFT_eSPI &display,
@@ -147,9 +145,9 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
   digitalWrite(vibrationMotorPin, HIGH);
 
   if (successfulMeasurements == 10) {
-    measurementsCompleteTone();  // 🎵 For completed session
+    Effects::measurementsCompleteTone();
   } else {
-    successTone();  // 🎵 For regular success
+    Effects::successTone();
   }
 
   lv_obj_t *screen = lv_obj_create(NULL);
@@ -206,7 +204,7 @@ void MeasurementScreen::returnToHomeEventHandler(lv_event_t *e) {
 void MeasurementScreen::clearSuccessState() {
   Serial.println("[DEBUG] Clearing success state and transitioning to home screen...");
   digitalWrite(vibrationMotorPin, LOW);
-  stopTone();
+  Effects::stopTone();
   showingSuccess = false;
 
   exitMeasurementMode();
@@ -230,7 +228,7 @@ void MeasurementScreen::showNoObject() {
 void MeasurementScreen::showUnrecordedSuccess() {
   Serial.println("[DEBUG] Showing unrecorded success screen...");
 
-  successTone();
+  Effects::successTone();
   // Start vibration for entire success screen duration
   digitalWrite(vibrationMotorPin, HIGH);
 

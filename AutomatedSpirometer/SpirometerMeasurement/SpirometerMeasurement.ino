@@ -1,5 +1,4 @@
 // TODO:
-//       Utilize Vibrate() instead of explicitly passing and digitalwriting to activate vibration motor
 //       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
 
 #include <TFT_eSPI.h>
@@ -93,13 +92,13 @@ ReminderSystem reminderSystem(
 ReminderScreen reminderScreen(tft, dataLogger);
 
 // instance and global variables for buzzer
-ToneStep toneSequence[MAX_TONE_SEQUENCE_LENGTH];
-int toneCount = 0;
-int currentToneIndex = 0;
-bool tonePlaying = false;
-unsigned long toneStartTime = 0;
-unsigned long interToneDelay = 30;  // Delay between tones
-bool inInterDelay = false;
+// ToneStep toneSequence[MAX_TONE_SEQUENCE_LENGTH];
+// int toneCount = 0;
+// int currentToneIndex = 0;
+// bool tonePlaying = false;
+// unsigned long toneStartTime = 0;
+// unsigned long interToneDelay = 30;  // Delay between tones
+// bool inInterDelay = false;
 
 // Forward declarations
 void enterSleepMode();
@@ -110,11 +109,6 @@ void handleResetButton();
 void handleMeasurementMode();
 void exitMeasurementMode();
 void detectObject();
-void vibrate(int duration);
-void successTone();
-void measurementsCompleteTone();
-void reminderTone();
-void stopTone();
 
 // Use a safer "partial reset" that carefully sets only certain flags, if truly needed.
 void resetAllScreenFlags() {
@@ -153,6 +147,7 @@ void setup() {
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
 
+  Effects::beginTone(buzzerPin);
   Effects::begin(vibrationMotorPin, screenBacklightPin);
 
   // TFT init
@@ -189,7 +184,7 @@ void loop() {
   lv_timer_handler();
   //lv_task_handler();
 
-  updateToneSequence();  // async audio
+  Effects::updateTone();  // async audio
   Effects::updateVibration();
   Effects::updateScreenFlash();
 
@@ -350,7 +345,7 @@ void exitMeasurementMode() {
   awaitingObjectDetection = false;
   showingSuccess = false;
 
-  stopTone();  // precaution in case success screen is dismissed indirectly
+  Effects::stopTone();  // precaution in case success screen is dismissed indirectly
   homeScreen.show();
   lv_refr_now(NULL);
 }
@@ -443,108 +438,3 @@ void turnOnDisplay() {
   delay(50);
 }
 
-void vibrate(int duration) {
-  digitalWrite(vibrationMotorPin, HIGH);
-  delay(duration);
-  digitalWrite(vibrationMotorPin, LOW);
-}
-
-void queueTone(int frequency, int duration) {
-  if (toneCount < MAX_TONE_SEQUENCE_LENGTH) {
-    toneSequence[toneCount++] = { frequency, duration };
-  }
-}
-
-void clearToneQueue() {
-  tonePlaying = false;
-  toneCount = 0;
-  currentToneIndex = 0;
-  inInterDelay = false;
-  noTone(buzzerPin);
-}
-
-void startToneSequence() {
-  if (toneCount > 0) {
-    tonePlaying = true;
-    currentToneIndex = 0;
-    toneStartTime = millis();
-    tone(buzzerPin, toneSequence[0].frequency);
-  }
-}
-
-void updateToneSequence() {
-  // if (!tonePlaying || !showingSuccess) {
-  //   stopTone();  // ensures tone stops instantly if screen was closed
-  //   return;
-  // }
-
-  unsigned long now = millis();
-  ToneStep &step = toneSequence[currentToneIndex];
-
-  if (!inInterDelay && now - toneStartTime >= (unsigned long)step.duration) {
-    noTone(buzzerPin);
-    inInterDelay = true;
-    toneStartTime = now;
-  } else if (inInterDelay && now - toneStartTime >= interToneDelay) {
-    currentToneIndex++;
-    if (currentToneIndex < toneCount) {
-      tone(buzzerPin, toneSequence[currentToneIndex].frequency);
-      toneStartTime = now;
-      inInterDelay = false;
-    } else {
-      tonePlaying = false;
-      toneCount = 0;
-      inInterDelay = false;
-      noTone(buzzerPin);
-    }
-  }
-}
-
-// Public API functions
-void successTone() {
-  clearToneQueue();
-  queueTone(784, 200);
-  queueTone(880, 200);
-  queueTone(988, 200);
-  queueTone(1047, 300);
-  queueTone(784, 200);
-  queueTone(1319, 300);
-  queueTone(1175, 200);
-  queueTone(1568, 400);
-  startToneSequence();
-}
-
-void measurementsCompleteTone() {
-  clearToneQueue();
-  successTone();
-  queueTone(0, 200);  // Rest
-  queueTone(784, 200);
-  queueTone(880, 200);
-  queueTone(988, 200);
-  queueTone(1047, 300);
-  queueTone(784, 200);
-  queueTone(1319, 300);
-  queueTone(1175, 200);
-  queueTone(1568, 400);
-  startToneSequence();
-}
-
-void reminderTone() {
-  clearToneQueue();
-
-  // Rising melody (gentle but noticeable)
-  queueTone(880, 200);   // A5
-  queueTone(988, 200);   // B5
-  queueTone(1047, 250);  // C6
-  queueTone(0, 200);     // Pause
-
-  // Double pulse ending
-  queueTone(1047, 100);  // C6
-  queueTone(1319, 150);  // E6
-
-  startToneSequence();
-}
-
-void stopTone() {
-  clearToneQueue();
-}

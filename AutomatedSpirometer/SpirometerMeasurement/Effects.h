@@ -6,6 +6,7 @@
 class Effects {
 public:
   static void begin(int vibPin, int backlightPin);
+  static void beginTone(int buzzerPin);
 
   static void startVibration(int pulses, int onDuration, int offDuration);
   static void updateVibration();
@@ -13,14 +14,17 @@ public:
   static void startScreenFlash(int flashes, int onDuration, int offDuration);
   static void updateScreenFlash();
 
-  static void stopAll();
+  static void updateTone();
+  static void stopTone();
+  static void successTone();
+  static void measurementsCompleteTone();
+  static void reminderTone();
 
   static bool isScreenFlashing();
 
 private:
+  // Vibration
   static int vibrationPin;
-  static int backlightPin;
-
   static bool vibrationActive;
   static unsigned long vibrationStartTime;
   static int vibrationPulsesRemaining;
@@ -28,12 +32,32 @@ private:
   static int vibrationOnDuration;
   static int vibrationOffDuration;
 
+  // Screen Flash
+  static int backlightPin;
   static bool screenFlashActive;
   static unsigned long screenFlashStartTime;
   static int screenFlashesRemaining;
   static bool screenOnPhase;
   static int screenOnDuration;
   static int screenOffDuration;
+
+  // Tone
+  static int buzzerPin;
+  static const int maxToneSequenceLength = 20;
+  struct ToneStep {
+    int frequency;
+    int duration;
+  };
+  static ToneStep toneSequence[maxToneSequenceLength];
+  static int toneCount;
+  static int currentToneIndex;
+  static bool tonePlaying;
+  static unsigned long toneStartTime;
+  static unsigned long interToneDelay;
+  static bool inInterDelay;
+
+  static void clearToneQueue();
+  static void startToneSequence();
 };
 
 #endif

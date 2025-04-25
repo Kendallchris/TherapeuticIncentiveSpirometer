@@ -4,8 +4,6 @@
 
 extern void turnOnDisplay();
 extern void wakeUp();
-extern void reminderTone();
-extern void stopTone();
 
 ReminderSystem::ReminderSystem(int motorPin, int backlightPin, int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
   : vibrationMotorPin(motorPin), screenBacklightPin(backlightPin), buttonPin(buttonPin),
@@ -62,7 +60,7 @@ void ReminderSystem::triggerReminder() {
   reminderTriggered = true;
 
   // --- Start flashing first ---
-  reminderTone();
+  Effects::reminderTone();
   Effects::startVibration(3, 1000, 500);
   Effects::startScreenFlash(3, 1000, 500);
 
@@ -75,17 +73,4 @@ void ReminderSystem::dismissReminder() {
   Serial.println("Reminder dismissed via hardware button.");
   ReminderScreen::isActive = false;
   reminderScreen.dismissReminder();
-}
-
-void ReminderSystem::activateReminderAlert(int flashes, int vibrationDuration) {
-  Serial.println("Activating reminder alert...");
-
-  reminderTone();
-  Effects::startVibration(flashes, vibrationDuration, 500);
-  Effects::startScreenFlash(flashes, vibrationDuration, 500);
-
-  Serial.println("Reminder alert sequence activated.");
-  turnOnDisplay();
-  lv_scr_load(lv_scr_act());
-  lv_refr_now(NULL);
 }

@@ -21,15 +21,13 @@ private:
   bool &isAsleep;
   bool reminderTriggered = false;
   unsigned long lastActivityTime;
-  // const unsigned long reminderInterval = 600000;
-  const unsigned long reminderInterval = 30000;
+  const unsigned long reminderInterval = 600000;
 
   TFT_eSPI &tft;
   DataLogger &dataLogger;
   ReminderScreen reminderScreen;
 
   void triggerReminder();
-  void activateReminderAlert(int flashes, int vibrationDuration);
 };
 
 #endif
