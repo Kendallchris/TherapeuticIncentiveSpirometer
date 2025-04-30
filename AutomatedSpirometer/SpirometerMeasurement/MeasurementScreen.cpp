@@ -25,15 +25,11 @@ void MeasurementScreen::showWaitingWithCountdown() {
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
   lv_scr_load(screen);
 
-  countdown_label = lv_label_create(screen);
-  lv_label_set_text(countdown_label, "Beginning measurement...");
-  lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -20);
-
   // --- Decorative Cancel Button (Bottom Left) ---
   lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
   lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);  // Ensure it's not interactive
-  lv_obj_set_size(cancel_btn, 150, 60);
-  lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+  lv_obj_set_size(cancel_btn, 200, 40);
+  lv_obj_align(cancel_btn, LV_ALIGN_TOP_MID, 0, 10);
 
   lv_obj_t *cancel_label = lv_label_create(cancel_btn);
   lv_label_set_text(cancel_label, "Cancel");
@@ -42,6 +38,11 @@ void MeasurementScreen::showWaitingWithCountdown() {
   lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
   lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
   lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+
+  // --- Message ---
+  countdown_label = lv_label_create(screen);
+  lv_label_set_text(countdown_label, "Beginning measurement...");
+  lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -20);
 
   countdown_duration = 5;
   countdown_active = true;
@@ -71,6 +72,21 @@ void MeasurementScreen::updateCountdown() {
       if (remaining != lastShown) {
         lastShown = remaining;
 
+        // --- Decorative Cancel Button (Bottom Left) ---
+        lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
+        lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_size(cancel_btn, 200, 40);
+        lv_obj_align(cancel_btn, LV_ALIGN_TOP_MID, 0, 10);
+
+        lv_obj_t *cancel_label = lv_label_create(cancel_btn);
+        lv_label_set_text(cancel_label, "Cancel");
+        lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);
+
+        lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
+        lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
+        lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+
+        // --- Message ---
         lv_label_set_long_mode(countdown_label, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(countdown_label, 220);
         lv_label_set_text_fmt(
@@ -80,20 +96,6 @@ void MeasurementScreen::updateCountdown() {
         lv_obj_set_style_text_align(countdown_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         lv_obj_align(countdown_label, LV_ALIGN_CENTER, 0, -40);
         lv_refr_now(NULL);
-
-        // --- Decorative Cancel Button (Bottom Left) ---
-        lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
-        lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_size(cancel_btn, 150, 60);
-        lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
-
-        lv_obj_t *cancel_label = lv_label_create(cancel_btn);
-        lv_label_set_text(cancel_label, "Cancel");
-        lv_obj_align(cancel_label, LV_ALIGN_CENTER, 0, 0);
-
-        lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
-        lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
-        lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
       }
     } else {
       lv_label_set_text(countdown_label, "Waiting for object...");
@@ -111,18 +113,11 @@ void MeasurementScreen::beginMeasurementPhase() {
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
   lv_scr_load(screen);
 
-  lv_obj_t *measurement_label = lv_label_create(screen);
-  lv_label_set_long_mode(measurement_label, LV_LABEL_LONG_WRAP);
-  lv_obj_set_width(measurement_label, 220);
-  lv_label_set_text(measurement_label, "Waiting for object...\nPress green button to cancel");
-  lv_obj_set_style_text_align(measurement_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-  lv_obj_align(measurement_label, LV_ALIGN_CENTER, 0, -40);
-
   // --- Decorative Cancel Button (Bottom Left) ---
   lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
   lv_obj_clear_flag(cancel_btn, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_size(cancel_btn, 150, 60);
-  lv_obj_align(cancel_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+  lv_obj_set_size(cancel_btn, 200, 40);
+  lv_obj_align(cancel_btn, LV_ALIGN_TOP_MID, 0, 10);
 
   lv_obj_t *cancel_label = lv_label_create(cancel_btn);
   lv_label_set_text(cancel_label, "Cancel");
@@ -132,6 +127,14 @@ void MeasurementScreen::beginMeasurementPhase() {
   lv_obj_set_style_radius(cancel_btn, 10, LV_PART_MAIN);
   lv_obj_set_style_text_color(cancel_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
+  // --- Message ---
+  lv_obj_t *measurement_label = lv_label_create(screen);
+  lv_label_set_long_mode(measurement_label, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(measurement_label, 220);
+  lv_label_set_text(measurement_label, "Waiting for object...\nPress green button to cancel");
+  lv_obj_set_style_text_align(measurement_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+  lv_obj_align(measurement_label, LV_ALIGN_CENTER, 0, -40);
+
   awaitingObjectDetection = true;
   lv_refr_now(NULL);
 }
@@ -139,8 +142,6 @@ void MeasurementScreen::beginMeasurementPhase() {
 void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageComplete) {
   Serial.println("[DEBUG] Showing success screen...");
 
-  // Start vibration for entire success screen duration
-  // digitalWrite(vibrationMotorPin, HIGH);
   Effects::startVibration(3, 1000, 500);
 
   if (successfulMeasurements == 10) {
@@ -166,6 +167,21 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
             sizeof(successText) - strlen(successText) - 1);
   }
 
+  // "OK" button -> return home
+  lv_obj_t *exit_btn = lv_btn_create(screen);
+  lv_obj_set_size(exit_btn, 200, 40);
+  lv_obj_align(exit_btn, LV_ALIGN_TOP_MID, 0, 10);
+  lv_obj_add_event_cb(exit_btn, returnToHomeEventHandler, LV_EVENT_CLICKED, this);
+
+  lv_obj_t *exit_label = lv_label_create(exit_btn);
+  lv_label_set_text(exit_label, "OK");
+  lv_obj_align(exit_label, LV_ALIGN_CENTER, 0, 0);
+
+  lv_obj_set_style_bg_color(exit_btn, lv_color_hex(0x4CAF50), LV_PART_MAIN);
+  lv_obj_set_style_radius(exit_btn, 10, LV_PART_MAIN);
+  lv_obj_set_style_text_color(exit_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+
+  // --- Message ---
   lv_obj_t *success_label = lv_label_create(screen);
   lv_label_set_long_mode(success_label, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(success_label, 220);
@@ -177,20 +193,6 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
 
   showingSuccess = true;
   Serial.println("[DEBUG] Success screen active.");
-
-  // "OK" button -> return home
-  lv_obj_t *exit_btn = lv_btn_create(screen);
-  lv_obj_set_size(exit_btn, 150, 60);
-  lv_obj_align(exit_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
-  lv_obj_add_event_cb(exit_btn, returnToHomeEventHandler, LV_EVENT_CLICKED, this);
-
-  lv_obj_t *exit_label = lv_label_create(exit_btn);
-  lv_label_set_text(exit_label, "OK");
-  lv_obj_align(exit_label, LV_ALIGN_CENTER, 0, 0);
-
-  lv_obj_set_style_bg_color(exit_btn, lv_color_hex(0xE74C3C), LV_PART_MAIN);
-  lv_obj_set_style_radius(exit_btn, 10, LV_PART_MAIN);
-  lv_obj_set_style_text_color(exit_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 }
 
 // For "OK" button on success screen
@@ -234,19 +236,9 @@ void MeasurementScreen::showUnrecordedSuccess() {
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
   lv_scr_load(screen);
 
-  lv_obj_t *info_label = lv_label_create(screen);
-  lv_label_set_long_mode(info_label, LV_LABEL_LONG_WRAP);
-  lv_obj_set_width(info_label, 220);
-  lv_label_set_text(info_label,
-                    "Measurement done, but not recorded.\n"
-                    "You have already met your goal of 10.\n\n"
-                    "Press OK to continue.");
-  lv_obj_set_style_text_align(info_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-  lv_obj_align(info_label, LV_ALIGN_CENTER, 0, -20);
-
   lv_obj_t *ok_btn = lv_btn_create(screen);
-  lv_obj_set_size(ok_btn, 150, 60);
-  lv_obj_align(ok_btn, LV_ALIGN_CENTER, 80, 80);
+  lv_obj_set_size(ok_btn, 200, 40);
+  lv_obj_align(ok_btn, LV_ALIGN_TOP_MID, 0, 10);
   lv_obj_add_event_cb(ok_btn, unrecordedOkEventHandler, LV_EVENT_CLICKED, this);
 
   lv_obj_t *ok_label = lv_label_create(ok_btn);
@@ -256,6 +248,17 @@ void MeasurementScreen::showUnrecordedSuccess() {
   lv_obj_set_style_bg_color(ok_btn, lv_color_hex(0xE74C3C), LV_PART_MAIN);
   lv_obj_set_style_radius(ok_btn, 10, LV_PART_MAIN);
   lv_obj_set_style_text_color(ok_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+
+  // --- Message ---
+  lv_obj_t *info_label = lv_label_create(screen);
+  lv_label_set_long_mode(info_label, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(info_label, 220);
+  lv_label_set_text(info_label,
+                    "Measurement done, but not recorded.\n"
+                    "You have already met your goal of 10.\n\n"
+                    "Press OK to continue.");
+  lv_obj_set_style_text_align(info_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+  lv_obj_align(info_label, LV_ALIGN_CENTER, 0, -20);
 
   showingSuccess = true;
   Serial.println("[DEBUG] Unrecorded success screen active.");

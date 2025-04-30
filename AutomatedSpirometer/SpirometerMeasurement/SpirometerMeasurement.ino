@@ -33,8 +33,8 @@ const int buzzerPin = 9;  // Using PIEZO BUZZER TRANSDUCER
 #define TFT_SLPOUT 0x11  // Sleep Out
 
 // Override for rotation
-#define ROTATED_WIDTH 320
-#define ROTATED_HEIGHT 240
+#define ROTATED_WIDTH 240
+#define ROTATED_HEIGHT 320
 #undef TFT_WIDTH
 #undef TFT_HEIGHT
 #define TFT_WIDTH ROTATED_WIDTH
@@ -138,12 +138,12 @@ void setup() {
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
 
-  Effects::beginTone(buzzerPin);
+  Effects::beginTone(buzzerPin); // could probably combine this with 'begin' for simplicity
   Effects::begin(vibrationMotorPin, screenBacklightPin);
 
   // TFT init
   tft.init();
-  tft.setRotation(1);
+  tft.setRotation(0);
 
   // Accelerometer init
   Serial.println("Initializing Accelerometer...");
