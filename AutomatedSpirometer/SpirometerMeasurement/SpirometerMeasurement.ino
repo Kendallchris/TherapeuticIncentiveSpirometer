@@ -1,5 +1,8 @@
 // TODO:
 //       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
+//       Occassionally still getting stuck on measuremnt countdown and occassionally getting stuck in "Waiting for object..."
+//       10/10 measurements complete screen cutoff after "conitnu"
+//       Need to flip orientation to vertical with buttons on the left side
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
@@ -77,28 +80,16 @@ MeasurementScreen measurementScreen(
   tft,
   awaitingObjectDetection,
   showingSuccess,
-  homeScreen,
-  vibrationMotorPin);
+  homeScreen);
 DataLogger dataLogger;
 Accelerometer accelerometer(ADXL345_I2C_ADDR, tiltAngleThreshold);
 ResetConfirmation resetScreen(tft, dataLogger);
 ReminderSystem reminderSystem(
-  vibrationMotorPin,
-  screenBacklightPin,
   buttonPin,
   tft,
   isAsleep,
   dataLogger);
 ReminderScreen reminderScreen(tft, dataLogger);
-
-// instance and global variables for buzzer
-// ToneStep toneSequence[MAX_TONE_SEQUENCE_LENGTH];
-// int toneCount = 0;
-// int currentToneIndex = 0;
-// bool tonePlaying = false;
-// unsigned long toneStartTime = 0;
-// unsigned long interToneDelay = 30;  // Delay between tones
-// bool inInterDelay = false;
 
 // Forward declarations
 void enterSleepMode();

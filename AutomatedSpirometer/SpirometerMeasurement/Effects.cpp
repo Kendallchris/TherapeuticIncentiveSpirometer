@@ -55,6 +55,12 @@ void Effects::updateVibration() {
   if (!vibrationActive) return;
 
   unsigned long now = millis();
+  if (vibrationPulsesRemaining <= 0) {
+    vibrationActive = false;
+    digitalWrite(vibrationPin, LOW);
+    return;
+  }
+
   if (vibrationOnPhase && now - vibrationStartTime >= (unsigned long)vibrationOnDuration) {
     digitalWrite(vibrationPin, LOW);
     vibrationOnPhase = false;
@@ -70,6 +76,13 @@ void Effects::updateVibration() {
       digitalWrite(vibrationPin, LOW);
     }
   }
+}
+
+void Effects::stopVibration() {
+  vibrationActive = false;
+  vibrationPulsesRemaining = 0;
+  vibrationOnPhase = false;
+  digitalWrite(vibrationPin, LOW);
 }
 
 void Effects::startScreenFlash(int flashes, int onDuration, int offDuration) {
@@ -151,40 +164,40 @@ void Effects::stopTone() {
 
 void Effects::successTone() {
   clearToneQueue();
-  toneSequence[toneCount++] = {784, 200};
-  toneSequence[toneCount++] = {880, 200};
-  toneSequence[toneCount++] = {988, 200};
-  toneSequence[toneCount++] = {1047, 300};
-  toneSequence[toneCount++] = {784, 200};
-  toneSequence[toneCount++] = {1319, 300};
-  toneSequence[toneCount++] = {1175, 200};
-  toneSequence[toneCount++] = {1568, 400};
+  toneSequence[toneCount++] = { 784, 200 };
+  toneSequence[toneCount++] = { 880, 200 };
+  toneSequence[toneCount++] = { 988, 200 };
+  toneSequence[toneCount++] = { 1047, 300 };
+  toneSequence[toneCount++] = { 784, 200 };
+  toneSequence[toneCount++] = { 1319, 300 };
+  toneSequence[toneCount++] = { 1175, 200 };
+  toneSequence[toneCount++] = { 1568, 400 };
   startToneSequence();
 }
 
 void Effects::measurementsCompleteTone() {
   clearToneQueue();
   successTone();
-  toneSequence[toneCount++] = {0, 200};
-  toneSequence[toneCount++] = {784, 200};
-  toneSequence[toneCount++] = {880, 200};
-  toneSequence[toneCount++] = {988, 200};
-  toneSequence[toneCount++] = {1047, 300};
-  toneSequence[toneCount++] = {784, 200};
-  toneSequence[toneCount++] = {1319, 300};
-  toneSequence[toneCount++] = {1175, 200};
-  toneSequence[toneCount++] = {1568, 400};
+  toneSequence[toneCount++] = { 0, 200 };
+  toneSequence[toneCount++] = { 784, 200 };
+  toneSequence[toneCount++] = { 880, 200 };
+  toneSequence[toneCount++] = { 988, 200 };
+  toneSequence[toneCount++] = { 1047, 300 };
+  toneSequence[toneCount++] = { 784, 200 };
+  toneSequence[toneCount++] = { 1319, 300 };
+  toneSequence[toneCount++] = { 1175, 200 };
+  toneSequence[toneCount++] = { 1568, 400 };
   startToneSequence();
 }
 
 void Effects::reminderTone() {
   clearToneQueue();
-  toneSequence[toneCount++] = {880, 200};
-  toneSequence[toneCount++] = {988, 200};
-  toneSequence[toneCount++] = {1047, 250};
-  toneSequence[toneCount++] = {0, 200};
-  toneSequence[toneCount++] = {1047, 100};
-  toneSequence[toneCount++] = {1319, 150};
+  toneSequence[toneCount++] = { 880, 200 };
+  toneSequence[toneCount++] = { 988, 200 };
+  toneSequence[toneCount++] = { 1047, 250 };
+  toneSequence[toneCount++] = { 0, 200 };
+  toneSequence[toneCount++] = { 1047, 100 };
+  toneSequence[toneCount++] = { 1319, 150 };
   startToneSequence();
 }
 

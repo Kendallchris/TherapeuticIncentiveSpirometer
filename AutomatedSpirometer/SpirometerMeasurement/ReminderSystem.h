@@ -9,14 +9,12 @@
 
 class ReminderSystem {
 public:
-  ReminderSystem(int motorPin, int backlightPin, int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger);
+  ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger);
   void resetTimer();
   void checkReminder();
   void dismissReminder();
 
 private:
-  int vibrationMotorPin;
-  int screenBacklightPin;
   int buttonPin;  // Store button pin reference
   bool &isAsleep;
   bool reminderTriggered = false;

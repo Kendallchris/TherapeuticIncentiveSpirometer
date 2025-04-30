@@ -5,13 +5,10 @@
 extern void turnOnDisplay();
 extern void wakeUp();
 
-ReminderSystem::ReminderSystem(int motorPin, int backlightPin, int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
-  : vibrationMotorPin(motorPin), screenBacklightPin(backlightPin), buttonPin(buttonPin),
+ReminderSystem::ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
+  : buttonPin(buttonPin),
     isAsleep(sleepState), lastActivityTime(millis()), tft(display), dataLogger(logger), reminderScreen(display, logger) {
-  pinMode(vibrationMotorPin, OUTPUT);
-  pinMode(screenBacklightPin, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP);
-  digitalWrite(vibrationMotorPin, LOW);
 }
 
 extern void resetAllScreenFlags();

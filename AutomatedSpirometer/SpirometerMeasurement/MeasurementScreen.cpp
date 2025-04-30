@@ -11,15 +11,13 @@ MeasurementScreen::MeasurementScreen(
   TFT_eSPI &display,
   bool &awaitingDetection,
   bool &showingSuccess,
-  HomeScreen &homeScreen,
-  int vibrationPin)
+  HomeScreen &homeScreen)
   : tft(display),
     awaitingObjectDetection(awaitingDetection),
     showingSuccess(showingSuccess),
     homeScreen(homeScreen),
     countdown_label(nullptr),
-    countdown_active(false),
-    vibrationMotorPin(vibrationPin) {
+    countdown_active(false) {
 }
 
 void MeasurementScreen::showWaitingWithCountdown() {
@@ -142,7 +140,8 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
   Serial.println("[DEBUG] Showing success screen...");
 
   // Start vibration for entire success screen duration
-  digitalWrite(vibrationMotorPin, HIGH);
+  // digitalWrite(vibrationMotorPin, HIGH);
+  Effects::startVibration(3, 1000, 500);
 
   if (successfulMeasurements == 10) {
     Effects::measurementsCompleteTone();
@@ -163,7 +162,7 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
   // If it's the 10th success, add extra reminder message
   if (successfulMeasurements == 10) {
     strncat(successText,
-            "\n\nGoal reached!\nPlease reset data before your next measurement to continue recording.",
+            "\n\nGoal reached!\nPlease reset data before your next measurement\n to continue recording.",
             sizeof(successText) - strlen(successText) - 1);
   }
 
@@ -203,7 +202,7 @@ void MeasurementScreen::returnToHomeEventHandler(lv_event_t *e) {
 
 void MeasurementScreen::clearSuccessState() {
   Serial.println("[DEBUG] Clearing success state and transitioning to home screen...");
-  digitalWrite(vibrationMotorPin, LOW);
+  Effects::stopVibration();
   Effects::stopTone();
   showingSuccess = false;
 
@@ -229,8 +228,7 @@ void MeasurementScreen::showUnrecordedSuccess() {
   Serial.println("[DEBUG] Showing unrecorded success screen...");
 
   Effects::successTone();
-  // Start vibration for entire success screen duration
-  digitalWrite(vibrationMotorPin, HIGH);
+  Effects::startVibration(3, 1000, 500);
 
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);

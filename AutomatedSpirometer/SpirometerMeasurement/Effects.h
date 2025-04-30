@@ -10,6 +10,7 @@ public:
 
   static void startVibration(int pulses, int onDuration, int offDuration);
   static void updateVibration();
+  static void stopVibration(); // not really needed - will be handled in updateVibration
 
   static void startScreenFlash(int flashes, int onDuration, int offDuration);
   static void updateScreenFlash();

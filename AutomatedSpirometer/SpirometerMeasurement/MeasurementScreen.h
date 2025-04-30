@@ -7,7 +7,7 @@
 
 class MeasurementScreen {
 public:
-  MeasurementScreen(TFT_eSPI &display, bool &awaitingDetection, bool &showingSuccess, HomeScreen &homeScreen, int vibrationPin);
+  MeasurementScreen(TFT_eSPI &display, bool &awaitingDetection, bool &showingSuccess, HomeScreen &homeScreen);
   void showWaitingWithCountdown();
   void updateCountdown();
   void beginMeasurementPhase();
@@ -33,7 +33,6 @@ private:
   unsigned long countdown_start;
   bool countdown_active;
   int countdown_duration = 10;
-  int vibrationMotorPin;  // Added for vibration control
 
   static void returnToHomeEventHandler(lv_event_t *e);
 };
