@@ -65,10 +65,10 @@ bool showingSuccess = false;
 // Timer variables
 unsigned long lastActivityTime = 0;
 unsigned long lastResetTime = 0;
-const unsigned long sleepDelay = 120000;  // 120 seconds inactivity
+const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
 const unsigned long detectionDelay = 5000;
 unsigned long measurementStartTime = 0;
-const unsigned long measurementTimeout = 60000;
+const unsigned long measurementTimeout = 50000; // > 50 seconds on measurement = fail ... return home
 unsigned long successStartTime = 0;
 const unsigned long successDuration = 8000;
 
