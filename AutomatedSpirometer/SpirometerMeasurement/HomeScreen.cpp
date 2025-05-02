@@ -10,7 +10,7 @@ HomeScreen::HomeScreen(TFT_eSPI &display)
 }
 
 void HomeScreen::show() {
-  int currentHour = dataLogger.getCurrentHourMeasurements(true);
+  int currentHour = dataLogger.getCurrentMeasurements();
 
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_scr_load(screen);

@@ -3,15 +3,13 @@
 
 class DataLogger {
 public:
-  DataLogger();                                              // Constructor
-  void incrementMeasurement();                               // Increment current hour measurement count
-  int getCurrentHourMeasurements(bool displayFull = false);  // Get the count for the current hour, optionally displaying full count
-  int getPreviousHourMeasurements();                         // Get the count for the previous hour
-  void resetData();                                          // Reset data and move
+  DataLogger();                      // Constructor
+  void incrementMeasurement();        // Increment measurement count
+  int getCurrentMeasurements();       // Get the current measurement count
+  void resetData();                   // Reset current measurements
 
 private:
-  int currentHourMeasurements;   // Stores current hour measurement count
-  int previousHourMeasurements;  // Stores previous hour measurement count
+  int currentMeasurements;            // Stores measurement count
 };
 
 #endif

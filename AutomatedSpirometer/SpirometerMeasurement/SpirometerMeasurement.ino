@@ -1,8 +1,6 @@
 // TODO:
-//       Adjust reminder logic (currently takes number of flashes and duration but should hardwire instead to not pass so many variables)
 //       Occassionally still getting stuck on measuremnt countdown and occassionally getting stuck in "Waiting for object..."
-//       10/10 measurements complete screen cutoff after "conitnu"
-//       Need to flip orientation to vertical with buttons on the left side
+//       After exactly 1 hour, whole system freezes up (on the home screen) and needs a power cycle
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
@@ -138,7 +136,7 @@ void setup() {
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
 
-  Effects::beginTone(buzzerPin); // could probably combine this with 'begin' for simplicity
+  Effects::beginTone(buzzerPin);  // could probably combine this with 'begin' for simplicity
   Effects::begin(vibrationMotorPin, screenBacklightPin);
 
   // TFT init
@@ -172,32 +170,33 @@ void setup() {
 }
 
 void loop() {
-  lv_timer_handler();
-  //lv_task_handler();
-
-  Effects::updateTone();  // async audio
-  Effects::updateVibration();
-  Effects::updateScreenFlash();
-
-  if (measurementMode && !awaitingObjectDetection && measurementScreen.isCountdownActive()) {
-    measurementScreen.updateCountdown();
-  }
-
+  // Sleep mode will only see if it need to turn on/activate reminder
   if (isAsleep) {
     handleWakeup();
+    delay(50);
     return;
   }
+
+  lv_timer_handler();
+
+  // async feedback functions
+  Effects::updateTone();
+  Effects::updateVibration();
+  Effects::updateScreenFlash();
 
   handleSleepMode();
   handleResetButton();
   handleMeasurementMode();
-
   reminderSystem.checkReminder();
+
+  // if (measurementMode && !awaitingObjectDetection && measurementScreen.isCountdownActive()) {
+  //   measurementScreen.updateCountdown();
+  // }
 
   // 🧠 Optional watchdog support
   // esp_task_wdt_reset();
 
-  delay(200);
+  delay(100);
 }
 
 
@@ -253,14 +252,14 @@ void handleMeasurementMode() {
   if (showingSuccess) {
     Serial.println("[DEBUG] Success screen active, checking timeout...");
 
-    // Auto exit
+    // Auto exit after timeout
     if (millis() - successStartTime >= successDuration) {
       Serial.println("[DEBUG] Success screen timed out, returning home...");
       showingSuccess = false;
       measurementScreen.clearSuccessState();
       return;
     }
-    // Manual exit
+    // Manual exit with button
     if (digitalRead(buttonPin) == LOW || digitalRead(resetButtonPin) == LOW) {
       Serial.println("[DEBUG] Button pressed, returning home from success...");
       showingSuccess = false;
@@ -269,6 +268,8 @@ void handleMeasurementMode() {
     }
     return;
   }
+
+  // --- Normal measurement handling ---
 
   // Now handle toggling measurement mode with the green button
   if (digitalRead(buttonPin) == LOW) {
@@ -287,58 +288,74 @@ void handleMeasurementMode() {
       measurementMode = true;
       awaitingObjectDetection = false;
       measurementStartTime = millis();
-      previousSensorState = false;  // After a successfull measurement this will be true - want to set back to false before assessing next measurement
+      previousSensorState = false;  // After a successful measurement this will be true - want to reset it before next
 
       measurementScreen.showWaitingWithCountdown();
       lv_refr_now(NULL);
     } else {
-      // This means we were in measurementMode; so user pressed again
+      // Already measuring, so cancel measurement
       Serial.println("Measurement canceled via button.");
       measurementMode = false;
       awaitingObjectDetection = false;
       exitMeasurementMode();
     }
+    delay(300);  // debounce
+    return;      // Important: stop here after button press
   }
 
-  // If measurement mode is on but we haven't started object detection yet, keep countdown updated
+  // --- Countdown ticking phase ---
+  static unsigned long lastCountdownTick = 0;
+  unsigned long now = millis();
   if (measurementMode && !awaitingObjectDetection) {
-    static unsigned long lastTick = 0;
-    if (measurementMode && !awaitingObjectDetection) {
-      if (millis() - lastTick >= 1000) {  // 1 s cadence
-        measurementScreen.updateCountdown();
-        lastTick = millis();
-      }
+    if ((now - lastCountdownTick) >= 1000) {  // Every 1000ms
+      measurementScreen.updateCountdown();
+      lastCountdownTick = now;
     }
-    // Once countdown is finished
+
+    // After countdown finishes, switch to waiting for object
     if (!measurementScreen.isCountdownActive()) {
       Serial.println("Countdown complete. Now awaiting object detection...");
       awaitingObjectDetection = true;
     }
+    return;
   }
 
-  // If we are awaiting detection, check the sensor
+  // --- Object detection phase ---
   if (measurementMode && awaitingObjectDetection) {
     detectObject();
 
     // Timeout handling if object not detected after measurementTimeout
-    if (millis() - measurementStartTime > measurementTimeout) {
+    if ((now - measurementStartTime) > measurementTimeout) {
       Serial.println("[TIMEOUT] Measurement timeout. No object detected. Exiting measurement mode.");
       measurementScreen.showNoObject();
       exitMeasurementMode();
-      return;
     }
   }
 }
 
 void exitMeasurementMode() {
-  Serial.println("Exiting measurement mode...");
+  Serial.println("[DEBUG] Exiting measurement mode...");
+
+  // Stop any ongoing effects
+  Effects::stopTone();  // precaution: ensure no tone is hanging
+  Effects::stopVibration();
+
+  // Reset measurement-related states
   measurementMode = false;
   awaitingObjectDetection = false;
   showingSuccess = false;
 
-  Effects::stopTone();  // precaution in case success screen is dismissed indirectly
+  // Reset screens if needed
+  ResetConfirmation::isActive = false;
+  ReminderScreen::isActive = false;
+
+  // Reload the home screen cleanly
   homeScreen.show();
-  lv_refr_now(NULL);
+  lv_scr_load(lv_scr_act());  // Safer: explicitly reload the active screen
+  lv_refr_now(NULL);           // Force an immediate refresh (avoid stale screen)
+
+  // Update lastActivityTime to prevent immediate sleep after exit
+  lastActivityTime = millis();
 }
 
 void detectObject() {
@@ -347,26 +364,30 @@ void detectObject() {
     return;
   }
 
+  static int lastSensorValue = 0;
   int sensorValue = analogRead(sensorPin);
-  bool objectDetected = (sensorValue < detectionThreshold);
 
-  // We only react if the sensor state changes
+  // Simple smoothing: average current and last reading
+  int averagedValue = (sensorValue + lastSensorValue) / 2;
+  lastSensorValue = sensorValue;
+
+  bool objectDetected = (averagedValue < detectionThreshold);
+
+  // Only react if the sensor state has changed
   if (objectDetected != previousSensorState) {
     if (objectDetected) {
       Serial.println("Object detected!");
 
-      int currentCount = dataLogger.getCurrentHourMeasurements(true);
+      int currentCount = dataLogger.getCurrentMeasurements();
 
       if (currentCount < 10) {
-        // We can still record this measurement
-        dataLogger.incrementMeasurement();  // physically capped at 10
-        currentCount++;                     // because we just incremented
+        dataLogger.incrementMeasurement();
+        currentCount++;
 
         int percentageComplete = (currentCount * 100) / 10;
         measurementScreen.showSuccess(currentCount, percentageComplete);
 
       } else {
-        // They are already at 10, so let's show "unrecorded" success
         measurementScreen.showUnrecordedSuccess();
       }
 
@@ -428,4 +449,3 @@ void turnOnDisplay() {
   tft.writecommand(TFT_DISPON);
   delay(50);
 }
-
