@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 #include <lvgl.h>
 #include <Wire.h>  // Include Wire library for I2C communication
+#include <Snooze.h>
 // #include <esp_task_wdt.h> // Watch Dog Task (will reset device if times out/freezes up for too long) *couldn't figure out how to get the library to be recognized*
 #include "HomeScreen.h"
 #include "DataLogger.h"
@@ -21,7 +22,15 @@ const int buttonPin = 15;       // Measurement mode button (green)
 const int resetButtonPin = 14;  // For wake-up button (red)
 const int screenBacklightPin = 22;
 const int vibrationMotorPin = 23;
-const int buzzerPin = 9;  // Using PIEZO BUZZER TRANSDUCER
+const int buzzerPin = 9;        // Using PIEZO BUZZER TRANSDUCER
+const int accInteruptPin = 17;  // INT1 hardware interrupt pin for accelerometer to wake from sleep
+
+SnoozeDigital snoozeButton;       // Wake by green button
+SnoozeDigital snoozeResetButton;  // Wake by reset button
+SnoozeTimer snoozeTimer;          // Wake by reminder timer
+SnoozeDigital snoozeAccel;        // Accelerometer INT1
+// SnoozeBlock config(snoozeAccel, snoozeButton, snoozeResetButton, snoozeTimer);
+SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
@@ -61,14 +70,16 @@ bool measurementMode = false;
 bool isAsleep = false;
 bool awaitingObjectDetection = false;
 bool showingSuccess = false;
+volatile bool accelerometerTriggered = false;
 
 // Timer variables
 unsigned long lastActivityTime = 0;
 unsigned long lastResetTime = 0;
 const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
+//const unsigned long sleepDelay = 1000;  // 1 second inactivity for testing purposes
 const unsigned long detectionDelay = 5000;
 unsigned long measurementStartTime = 0;
-const unsigned long measurementTimeout = 50000; // > 50 seconds on measurement = fail ... return home
+const unsigned long measurementTimeout = 50000;  // > 50 seconds on measurement = fail ... return home
 unsigned long successStartTime = 0;
 const unsigned long successDuration = 8000;
 
@@ -93,11 +104,16 @@ ReminderScreen reminderScreen(tft, dataLogger);
 void enterSleepMode();
 void wakeUp();
 void handleSleepMode();
-void handleWakeup();
 void handleResetButton();
 void handleMeasurementMode();
 void exitMeasurementMode();
 void detectObject();
+void onAccelerometerInterrupt();
+
+void onAccelerometerInterrupt() {
+  accelerometerTriggered = true;
+  accelerometer.clearInterrupt();
+}
 
 // Use a safer "partial reset" that carefully sets only certain flags, if truly needed.
 void resetAllScreenFlags() {
@@ -136,6 +152,8 @@ void setup() {
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
 
+  attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, RISING);
+
   Effects::beginTone(buzzerPin);  // could probably combine this with 'begin' for simplicity
   Effects::begin(vibrationMotorPin, screenBacklightPin);
 
@@ -146,6 +164,7 @@ void setup() {
   // Accelerometer init
   Serial.println("Initializing Accelerometer...");
   accelerometer.initialize();
+  accelerometer.setupMotionInterrupt();
   accelerometer.saveReferenceOrientation();
 
   // LVGL init
@@ -160,6 +179,14 @@ void setup() {
   disp_drv.ver_res = TFT_HEIGHT;
   lv_disp_drv_register(&disp_drv);
 
+  // Configure Snooze wakeup pins
+  snoozeButton.pinMode(buttonPin, INPUT_PULLUP, FALLING);            // Green button press
+  snoozeResetButton.pinMode(resetButtonPin, INPUT_PULLUP, FALLING);  // Red button press
+  snoozeAccel.pinMode(accInteruptPin, INPUT_PULLUP, RISING);
+
+  // Configure Snooze timer wakeup interval (soft-wake every 60 seconds to check reminders)
+  snoozeTimer.setTimer(60000);  // 60,000 ms = 60 seconds
+
   // Setup watchdog task
   // esp_task_wdt_init(5, true);  // 5 seconds timeout, panic=true (auto reset)
   // esp_task_wdt_add(NULL);      // Add current task (loop) to watchdog
@@ -172,7 +199,6 @@ void setup() {
 void loop() {
   // Sleep mode will only see if it need to turn on/activate reminder
   if (isAsleep) {
-    handleWakeup();
     delay(50);
     return;
   }
@@ -189,23 +215,10 @@ void loop() {
   handleMeasurementMode();
   reminderSystem.checkReminder();
 
-  // if (measurementMode && !awaitingObjectDetection && measurementScreen.isCountdownActive()) {
-  //   measurementScreen.updateCountdown();
-  // }
-
   // 🧠 Optional watchdog support
   // esp_task_wdt_reset();
 
   delay(100);
-}
-
-
-void handleWakeup() {
-  if (digitalRead(resetButtonPin) == LOW || digitalRead(buttonPin) == LOW || accelerometer.detectTilt()) {
-    wakeUp();
-  }
-  // Even while asleep, we check if a reminder is due
-  reminderSystem.checkReminder();
 }
 
 void handleSleepMode() {
@@ -276,7 +289,6 @@ void handleMeasurementMode() {
     lastActivityTime = millis();
 
     if (!measurementMode) {
-      lastActivityTime = millis();
       reminderSystem.resetTimer();
 
       Serial.println("Entering measurement mode...");
@@ -352,7 +364,7 @@ void exitMeasurementMode() {
   // Reload the home screen cleanly
   homeScreen.show();
   lv_scr_load(lv_scr_act());  // Safer: explicitly reload the active screen
-  lv_refr_now(NULL);           // Force an immediate refresh (avoid stale screen)
+  lv_refr_now(NULL);          // Force an immediate refresh (avoid stale screen)
 
   // Update lastActivityTime to prevent immediate sleep after exit
   lastActivityTime = millis();
@@ -403,23 +415,64 @@ void detectObject() {
   }
 }
 
-void initADXL345() {
-  Wire.beginTransmission(ADXL345_I2C_ADDR);
-  Wire.write(0x2D);
-  Wire.write(0x08);
-  Wire.endTransmission();
+void lightWakeCheck() {
+  Serial.println("[DEBUG] Light wake triggered...");
+
+  bool fullWakeRequired = false;
+
+  // Check if reminder time has elapsed
+  if ((now() - reminderSystem.getLastReminderTime()) >= reminderSystem.getReminderInterval()) {
+    Serial.println("[DEBUG] Reminder interval elapsed, need full wake.");
+    fullWakeRequired = true;
+  }
+
+  // Check accelerometer tilt
+  if (accelerometerTriggered) {
+    accelerometerTriggered = false;  // Reset flag
+    Serial.println("[DEBUG] Accelerometer triggered, checking tilt...");
+
+    if (accelerometer.detectTilt()) {
+      Serial.println("[DEBUG] Significant tilt detected!");
+      fullWakeRequired = true;
+    } else {
+      Serial.println("[DEBUG] Minor motion only. No full wake needed.");
+    }
+  }
+
+  if (fullWakeRequired) {
+    Serial.println("[DEBUG] Performing full wake...");
+    wakeUp();
+  } else {
+    Serial.println("[DEBUG] Returning to sleep...");
+    Snooze.sleep(config);  // Immediately re-enter sleep
+  }
 }
 
 void enterSleepMode() {
-  Serial.println("Entering sleep mode...");
+  Serial.println("[DEBUG] Entering light sleep mode...");
+
   accelerometer.saveReferenceOrientation();
+
   tft.writecommand(TFT_DISPOFF);
   tft.writecommand(TFT_SLPIN);
   digitalWrite(ledPin, LOW);
   digitalWrite(screenBacklightPin, LOW);
+
   isAsleep = true;
+
+  // Actually sleep here
+  Snooze.sleep(config);
+
+  // Woke up here automatically after sleep
+  isAsleep = false;
+
+  accelerometer.setupMotionInterrupt();  // Re-arm motion detection
+
+  // Instead of full wakeup, do a *light* check
+  lightWakeCheck();
 }
 
+// going to remove. Need to remove handlesleepmode first though
 void wakeUp() {
   Serial.println("Waking up from sleep mode...");
 

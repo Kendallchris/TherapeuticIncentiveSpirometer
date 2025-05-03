@@ -7,14 +7,14 @@ extern void wakeUp();
 
 ReminderSystem::ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
   : buttonPin(buttonPin),
-    isAsleep(sleepState), lastActivityTime(millis()), tft(display), dataLogger(logger), reminderScreen(display, logger) {
+    isAsleep(sleepState), lastReminderTime(now()), tft(display), dataLogger(logger), reminderScreen(display, logger) {
   pinMode(buttonPin, INPUT_PULLUP);
 }
 
 extern void resetAllScreenFlags();
 
 void ReminderSystem::resetTimer() {
-  lastActivityTime = millis();
+  lastReminderTime = now();
 }
 
 void ReminderSystem::checkReminder() {
@@ -31,17 +31,20 @@ void ReminderSystem::checkReminder() {
 
     reminderTriggered = false;  // ✅ Reset flag after using it
 
+    if (isAsleep) {
+      turnOnDisplay();
+      isAsleep = false;
+    }
+
     resetAllScreenFlags();
     ReminderScreen::isActive = true;
     reminderScreen.show();
     lv_scr_load(lv_scr_act());
     lv_refr_now(NULL);
-
-    turnOnDisplay();
   }
 
   // Timer check
-  if (millis() - lastActivityTime >= reminderInterval && !Effects::isScreenFlashing()) {
+  if ((now() - lastReminderTime >= reminderInterval) && !Effects::isScreenFlashing()) {
     triggerReminder();
     resetTimer();
   }

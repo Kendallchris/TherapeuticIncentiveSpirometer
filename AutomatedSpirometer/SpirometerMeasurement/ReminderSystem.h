@@ -6,6 +6,7 @@
 #include "ReminderScreen.h"
 #include "DataLogger.h"
 #include "HomeScreen.h"
+#include <TimeLib.h>
 
 class ReminderSystem {
 public:
@@ -13,13 +14,15 @@ public:
   void resetTimer();
   void checkReminder();
   void dismissReminder();
+  time_t getLastReminderTime() const { return lastReminderTime; }
+  unsigned long getReminderInterval() const { return reminderInterval; }
 
 private:
   int buttonPin;  // Store button pin reference
   bool &isAsleep;
   bool reminderTriggered = false;
-  unsigned long lastActivityTime;
-  const unsigned long reminderInterval = 600000;
+  time_t lastReminderTime;
+  const time_t reminderInterval = 600;
 
   TFT_eSPI &tft;
   DataLogger &dataLogger;
