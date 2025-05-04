@@ -16,6 +16,7 @@ public:
   void dismissReminder();
   time_t getLastReminderTime() const { return lastReminderTime; }
   unsigned long getReminderInterval() const { return reminderInterval; }
+  void triggerReminder();
 
 private:
   int buttonPin;  // Store button pin reference
@@ -27,8 +28,6 @@ private:
   TFT_eSPI &tft;
   DataLogger &dataLogger;
   ReminderScreen reminderScreen;
-
-  void triggerReminder();
 };
 
 #endif

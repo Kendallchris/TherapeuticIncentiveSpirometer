@@ -48,6 +48,7 @@ SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 #define TFT_HEIGHT ROTATED_HEIGHT
 
 #define MAX_TONE_SEQUENCE_LENGTH 20
+#define REMINDER_SOON_THRESHOLD_MS 30000 // 30 seconds threshold to trigger reminder immediately before sleep
 
 // Angle threshold for tilt detection (in degrees)
 const float tiltAngleThreshold = 30.0;
@@ -428,7 +429,7 @@ void lightWakeCheck() {
 
   // Check accelerometer tilt
   if (accelerometerTriggered) {
-    accelerometerTriggered = false;  // Reset flag
+    accelerometerTriggered = false;  // Reset flag early
     Serial.println("[DEBUG] Accelerometer triggered, checking tilt...");
 
     if (accelerometer.detectTilt()) {
@@ -449,10 +450,31 @@ void lightWakeCheck() {
 }
 
 void enterSleepMode() {
-  Serial.println("[DEBUG] Entering light sleep mode...");
+  Serial.println("[DEBUG] Preparing to enter light sleep mode...");
 
   accelerometer.saveReferenceOrientation();
 
+  // Check time until next reminder
+  unsigned long timeSinceLastReminder = (now() - reminderSystem.getLastReminderTime()) * 1000;  // in ms
+  unsigned long timeUntilNextReminder = (reminderSystem.getReminderInterval() * 1000) - timeSinceLastReminder;
+
+  Serial.print("[DEBUG] Time until next reminder (ms): ");
+  Serial.println(timeUntilNextReminder);
+
+  // If a reminder is due soon, trigger it immediately before sleeping
+  if (timeUntilNextReminder <= REMINDER_SOON_THRESHOLD_MS) {
+    Serial.println("[DEBUG] Reminder due soon, triggering immediately before sleep.");
+    reminderSystem.triggerReminder();
+    reminderSystem.resetTimer();  // Reset timer after triggering
+    // Since we are active now, delay sleep slightly
+    lastActivityTime = millis();
+    return;
+  }
+
+  // Otherwise adjust timer to wake precisely when reminder is needed
+  snoozeTimer.setTimer(min(timeUntilNextReminder, 60000UL));  // max 60s sleep to check accelerometer regularly
+
+  // Sleep preparation
   tft.writecommand(TFT_DISPOFF);
   tft.writecommand(TFT_SLPIN);
   digitalWrite(ledPin, LOW);
@@ -460,7 +482,7 @@ void enterSleepMode() {
 
   isAsleep = true;
 
-  // Actually sleep here
+  // Actually sleep
   Snooze.sleep(config);
 
   // Woke up here automatically after sleep
@@ -468,25 +490,20 @@ void enterSleepMode() {
 
   accelerometer.setupMotionInterrupt();  // Re-arm motion detection
 
-  // Instead of full wakeup, do a *light* check
+  // After light wake, check if we need full wake
   lightWakeCheck();
 }
 
 // going to remove. Need to remove handlesleepmode first though
 void wakeUp() {
-  Serial.println("Waking up from sleep mode...");
+  Serial.println("[DEBUG] Waking up from sleep mode...");
 
   turnOnDisplay();
+  resetAllScreenFlags();
 
-  // partial reset
   isAsleep = false;
-  measurementMode = false;
-  awaitingObjectDetection = false;
-  showingSuccess = false;
-  ResetConfirmation::isActive = false;
-  ReminderScreen::isActive = false;
 
-  Serial.println("Reloading Home Screen after wake...");
+  Serial.println("[DEBUG] Reloading Home Screen after wake...");
   homeScreen.show();
 
   lv_refr_now(NULL);
