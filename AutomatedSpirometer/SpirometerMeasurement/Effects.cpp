@@ -111,9 +111,19 @@ void Effects::updateScreenFlash() {
       screenFlashStartTime = now;
     } else {
       screenFlashActive = false;
-      digitalWrite(backlightPin, HIGH);
+      digitalWrite(backlightPin, HIGH);  // Make sure backlight is ON
+
+      // Fully wake the display once flashing is done
+      extern void turnOnDisplay();
+      turnOnDisplay();
     }
   }
+}
+
+void Effects::stopScreenFlash() {
+  screenFlashActive = false;
+  screenFlashesRemaining = 0;
+  digitalWrite(backlightPin, HIGH);  // Make sure screen is ON after stopping
 }
 
 void Effects::startToneSequence() {

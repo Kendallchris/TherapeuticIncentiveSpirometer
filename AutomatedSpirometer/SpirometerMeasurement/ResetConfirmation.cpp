@@ -1,4 +1,5 @@
 #include "ResetConfirmation.h"
+#include "UIHelpers.h"
 #include <Arduino.h>  // for Serial if needed
 
 bool ResetConfirmation::isActive = false;  // Initialize the flag
@@ -11,9 +12,10 @@ extern void resetAllScreenFlags();
 void ResetConfirmation::show() {
   isActive = true;  // Mark the screen as active
 
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);  // Match screen size
-  lv_scr_load(screen);                                      // Load the confirmation screen
+  ui_switch_screen(screen);                                    // Load the confirmation screen
 
   // **Cancel Button (Green)**
   lv_obj_t *cancel_btn = lv_btn_create(screen);

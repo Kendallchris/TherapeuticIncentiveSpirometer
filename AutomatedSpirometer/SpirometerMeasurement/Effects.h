@@ -14,6 +14,7 @@ public:
 
   static void startScreenFlash(int flashes, int onDuration, int offDuration);
   static void updateScreenFlash();
+  static void stopScreenFlash();
 
   static void updateTone();
   static void stopTone();

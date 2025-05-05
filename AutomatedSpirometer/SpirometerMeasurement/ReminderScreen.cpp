@@ -1,5 +1,7 @@
 #include "ReminderScreen.h"
-#include <Arduino.h>  // for Serial
+#include "Effects.h"
+#include "UIHelpers.h"
+#include <Arduino.h>
 
 bool ReminderScreen::isActive = false;
 
@@ -9,11 +11,15 @@ ReminderScreen::ReminderScreen(TFT_eSPI &display, DataLogger &logger)
 extern void resetAllScreenFlags();
 
 void ReminderScreen::show() {
+  Effects::stopScreenFlash();  // stop any flashing effects first
+
   isActive = true;
   Serial.println("Reminder screen is now active");
 
-  screen = lv_obj_create(NULL);
-  lv_scr_load(screen);
+  lv_obj_clean(lv_scr_act());
+  lv_obj_t *screen = lv_obj_create(NULL);
+  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+  ui_switch_screen(screen);
 
   // --- Button ---
   lv_obj_t *dismiss_btn = lv_btn_create(screen);
@@ -38,7 +44,7 @@ void ReminderScreen::show() {
   lv_obj_set_style_text_align(message_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_align(message_label, LV_ALIGN_CENTER, 0, -40);
 
-  lv_refr_now(NULL);
+  lv_refr_now(NULL);  // force immediate refresh
 }
 
 void ReminderScreen::dismissReminder() {
@@ -50,10 +56,15 @@ void ReminderScreen::dismissReminder() {
   Serial.println("[DEBUG] Dismissing reminder, resetting all flags...");
   resetAllScreenFlags();
 
+  // 🛠️ Create a NEW screen properly
+  lv_obj_clean(lv_scr_act());
+  lv_obj_t *blank = lv_obj_create(NULL);
+  lv_obj_set_size(blank, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+  ui_switch_screen(blank);  // frees Reminder screen
+
   HomeScreen homeScreen(tft);
   homeScreen.show();
 
-  lv_scr_load(lv_scr_act());
   lv_refr_now(NULL);
 }
 

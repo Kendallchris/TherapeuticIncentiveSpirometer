@@ -18,6 +18,9 @@ void ReminderSystem::resetTimer() {
 }
 
 void ReminderSystem::checkReminder() {
+  static bool pendingReminderScreen = false;
+  static unsigned long flashFinishTime = 0;
+
   if (ReminderScreen::isActive && digitalRead(buttonPin) == LOW) {
     Serial.println("Dismissing reminder via hardware button...");
     dismissReminder();
@@ -25,11 +28,16 @@ void ReminderSystem::checkReminder() {
     return;
   }
 
-  // Only show ReminderScreen if flashing is done *AND* reminder was actually triggered
-  if (reminderTriggered && !Effects::isScreenFlashing()) {
-    Serial.println("Flashing complete. Now showing reminder screen.");
+  if (reminderTriggered && !Effects::isScreenFlashing() && !pendingReminderScreen) {
+    Serial.println("Flashing complete. Preparing to show reminder screen...");
+    reminderTriggered = false;
+    pendingReminderScreen = true;
+    flashFinishTime = millis();  // mark when flash finished
+    return;
+  }
 
-    reminderTriggered = false;  // ✅ Reset flag after using it
+  if (pendingReminderScreen && millis() - flashFinishTime >= 200) {  // wait 200ms buffer
+    Serial.println("Actually showing reminder screen now...");
 
     if (isAsleep) {
       turnOnDisplay();
@@ -39,12 +47,11 @@ void ReminderSystem::checkReminder() {
     resetAllScreenFlags();
     ReminderScreen::isActive = true;
     reminderScreen.show();
-    lv_scr_load(lv_scr_act());
-    lv_refr_now(NULL);
+
+    pendingReminderScreen = false;  // clear pending
   }
 
-  // Timer check
-  if ((now() - lastReminderTime >= reminderInterval) && !Effects::isScreenFlashing()) {
+  if (!isAsleep && (now() - lastReminderTime >= reminderInterval) && !Effects::isScreenFlashing()) {
     triggerReminder();
     resetTimer();
   }

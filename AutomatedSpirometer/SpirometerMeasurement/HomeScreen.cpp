@@ -1,6 +1,7 @@
 #include "HomeScreen.h"
 #include <lvgl.h>
 #include "DataLogger.h"
+#include "UIHelpers.h"
 
 extern DataLogger dataLogger;  // Use the global defined in .ino
 
@@ -12,8 +13,10 @@ HomeScreen::HomeScreen(TFT_eSPI &display)
 void HomeScreen::show() {
   int currentHour = dataLogger.getCurrentMeasurements();
 
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
-  lv_scr_load(screen);
+  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+  ui_switch_screen(screen);
 
   // -- START Button (Green, Top Left) --
   lv_obj_t *start_btn = lv_btn_create(screen);

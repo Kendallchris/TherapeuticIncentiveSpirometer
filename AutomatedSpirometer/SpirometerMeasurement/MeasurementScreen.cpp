@@ -1,6 +1,7 @@
 #include "MeasurementScreen.h"
 #include "HomeScreen.h"
 #include "Effects.h"
+#include "UIHelpers.h"
 #include <Arduino.h>
 #include <lvgl.h>
 
@@ -21,9 +22,10 @@ MeasurementScreen::MeasurementScreen(
 }
 
 void MeasurementScreen::showWaitingWithCountdown() {
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-  lv_scr_load(screen);
+  ui_switch_screen(screen);
 
   // --- Decorative Cancel Button (Bottom Left) ---
   lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
@@ -109,9 +111,10 @@ void MeasurementScreen::updateCountdown() {
 }
 
 void MeasurementScreen::beginMeasurementPhase() {
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-  lv_scr_load(screen);
+  ui_switch_screen(screen);
 
   // --- Decorative Cancel Button (Bottom Left) ---
   lv_obj_t *cancel_btn = lv_obj_create(lv_scr_act());
@@ -150,9 +153,10 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
     Effects::successTone();
   }
 
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-  lv_scr_load(screen);
+  ui_switch_screen(screen);
 
   // Build base message
   char successText[128];
@@ -212,8 +216,10 @@ void MeasurementScreen::clearSuccessState() {
 }
 
 void MeasurementScreen::showNoObject() {
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
-  lv_scr_load(screen);
+  lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+  ui_switch_screen(screen);
 
   lv_obj_t *no_object_label = lv_label_create(screen);
   lv_label_set_text(no_object_label, "No object detected.");
@@ -232,9 +238,10 @@ void MeasurementScreen::showUnrecordedSuccess() {
   Effects::successTone();
   Effects::startVibration(3, 1000, 500);
 
+  lv_obj_clean(lv_scr_act());
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-  lv_scr_load(screen);
+  ui_switch_screen(screen);
 
   lv_obj_t *ok_btn = lv_btn_create(screen);
   lv_obj_set_size(ok_btn, 200, 40);
