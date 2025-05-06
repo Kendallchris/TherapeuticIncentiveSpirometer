@@ -29,7 +29,6 @@ SnoozeDigital snoozeButton;       // Wake by green button
 SnoozeDigital snoozeResetButton;  // Wake by reset button
 SnoozeTimer snoozeTimer;          // Wake by reminder timer
 SnoozeDigital snoozeAccel;        // Accelerometer INT1
-// SnoozeBlock config(snoozeAccel, snoozeButton, snoozeResetButton, snoozeTimer);
 SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 
 // ADXL345 I2C Address
@@ -78,8 +77,8 @@ volatile bool resetButtonPressed = false;
 // Timer variables
 unsigned long lastActivityTime = 0;
 unsigned long lastResetTime = 0;
-const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
-//const unsigned long sleepDelay = 1000;  // 1 second inactivity for testing purposes
+//const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
+const unsigned long sleepDelay = 10000;  // 1 second inactivity for testing purposes
 const unsigned long detectionDelay = 5000;
 unsigned long measurementStartTime = 0;
 const unsigned long measurementTimeout = 50000;  // > 50 seconds on measurement = fail ... return home
@@ -430,14 +429,14 @@ void lightWakeCheck() {
   Serial.println("[DEBUG] Light wake triggered...");
 
   bool fullWakeRequired = false;
+  bool timerTriggeredReminder = false;
 
   if (buttonPressed || resetButtonPressed) {
     Serial.println("[DEBUG] Button wake detected!");
     fullWakeRequired = true;
     buttonPressed = false;
     resetButtonPressed = false;
-  }
-  else if (accelerometerTriggered) {
+  } else if (accelerometerTriggered) {
     accelerometerTriggered = false;
     Serial.println("[DEBUG] Accelerometer triggered, checking tilt...");
 
@@ -447,35 +446,41 @@ void lightWakeCheck() {
     } else {
       Serial.println("[DEBUG] Minor motion only. No full wake needed.");
     }
-  }
-  else {
-    // No motion, no button -> assume timer wake
+  } else {
     Serial.println("[DEBUG] Timer wake (light wake only).");
 
-    // Don't full wake; just check if reminder now due
     reminderSystem.handleTimerWake();
-    reminderSystem.checkReminder();
+
+    if (millis() - reminderSystem.getLastReminderTime() >= reminderSystem.getReminderInterval()) {
+      Serial.println("[DEBUG] Reminder due after timer wake!");
+      timerTriggeredReminder = true;
+    }
   }
 
-  if (fullWakeRequired) {
+  if (fullWakeRequired || timerTriggeredReminder) {
     Serial.println("[DEBUG] Performing full wake...");
-    performFullWake(); 
+    performFullWake();
   } else {
-    Serial.println("[DEBUG] No full wake needed. Going back to sleep...");
-    Snooze.sleep(config);  // Sleep again immediately
+    Serial.println("[DEBUG] No full wake needed. Re-arming accelerometer and going back to sleep...");
+
+    rearmAccelerometerAfterWake();  // 🛠️ critical addition
+
+    Serial.flush();
+    Snooze.sleep(config);  // Now it will correctly sleep again
   }
 }
 
-// NEW - break out full wake into a proper function:
 void performFullWake() {
-  turnOnDisplay();          // FIRST - power up the display properly
-  resetAllScreenFlags();    // Clear screen states
+  turnOnDisplay();        // FIRST - power up the display properly
+  resetAllScreenFlags();  // Clear screen states
 
-  isAsleep = false;         // Update sleep state
+  isAsleep = false;  // Update sleep state
 
   Serial.println("[DEBUG] Reloading Home Screen after full wake...");
   homeScreen.show();
-  lv_refr_now(NULL);        // Immediate screen redraw
+  lv_refr_now(NULL);  // Immediate screen redraw
+
+  rearmAccelerometerAfterWake();  // 🛠️ now use helper instead of duplicating
 
   reminderSystem.resetTimer();
 
@@ -497,15 +502,28 @@ void enterSleepMode() {
   if (timeUntilNextReminder <= REMINDER_SOON_THRESHOLD_MS) {
     Serial.println("[DEBUG] Reminder due soon, triggering immediately before sleep.");
     reminderSystem.triggerReminder();
-    reminderSystem.resetTimer();  
+    reminderSystem.resetTimer();
     lastActivityTime = millis();
     return;
   }
 
-  unsigned long sleepInterval = timeUntilNextReminder;
-  reminderSystem.prepareForSleep(sleepInterval);
+  unsigned long sleepIntervalMs = timeUntilNextReminder;
+  if (sleepIntervalMs == 0) {
+    sleepIntervalMs = 100;  // Prevent 0 sleep interval crash
+  }
 
-  snoozeTimer.setTimer(sleepInterval);
+  reminderSystem.prepareForSleep(sleepIntervalMs);
+
+  uint32_t sleepIntervalSec = (sleepIntervalMs + 999) / 1000;  // round up
+
+  if (sleepIntervalSec == 0) {
+    sleepIntervalSec = 1;  // Snooze requires minimum 1 second
+  }
+
+  Serial.print("[DEBUG] Sleep interval set to (seconds): ");
+  Serial.println(sleepIntervalSec);
+
+  snoozeTimer.setTimer(sleepIntervalSec);
 
   // Put display to sleep
   tft.writecommand(TFT_DISPOFF);
@@ -518,14 +536,14 @@ void enterSleepMode() {
   Serial.flush();
   Snooze.sleep(config);
 
+  // --- 🛠️ AFTER WAKEUP ---
   isAsleep = false;
 
-  accelerometer.setupMotionInterrupt();  // Re-arm motion
+  rearmAccelerometerAfterWake();  // 🛠️ after waking up, reconfigure accelerometer
 
-  lightWakeCheck();  // ← Then check if full wake needed
+  lightWakeCheck();  // Then check if full wake needed
 }
 
-// going to remove. Need to remove handlesleepmode first though
 void wakeUp() {
   Serial.println("[DEBUG] Calling performFullWake...");
   performFullWake();
@@ -538,4 +556,29 @@ void turnOnDisplay() {
   delay(150);
   tft.writecommand(TFT_DISPON);
   delay(50);
+}
+
+void rearmAccelerometerAfterWake() {
+  Serial.println("[DEBUG] Re‑arming accelerometer…");
+
+  /* 1️⃣  Re‑start I²C HW in case LPI2C clock stopped */
+  Wire.begin();
+  delay(1);
+
+  /* 2️⃣  Fresh ADXL345 configuration */
+  accelerometer.initialize();            // put in measure mode
+  accelerometer.setupMotionInterrupt();  // map ACTIVITY → INT1 etc.
+
+  /* 3️⃣  Clear any latched interrupt line **before** we re‑attach */
+  accelerometer.clearInterrupt();
+
+  /* 4️⃣  (Re)‑attach INT1 as CHANGE edge so it will fire even if the
+           line was left HIGH after a previous event. */
+  detachInterrupt(digitalPinToInterrupt(accInteruptPin));
+  attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, CHANGE);
+
+  /* 5️⃣  Reset flag so the next edge is seen as new */
+  accelerometerTriggered = false;
+
+  Serial.println("[DEBUG] Accelerometer fully re‑armed.");
 }

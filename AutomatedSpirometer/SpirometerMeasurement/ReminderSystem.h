@@ -28,7 +28,8 @@ private:
   bool &isAsleep;
   bool reminderTriggered = false;
   unsigned long lastReminderTime;
-  const unsigned long reminderInterval = 600000UL;  // 10 minutes in milliseconds
+  // const unsigned long reminderInterval = 600000UL;  // 10 minutes in milliseconds
+  const unsigned long reminderInterval = 70000UL;  // 70 seconds in milliseconds
   unsigned long sleptDuration = 0;
 
   TFT_eSPI &tft;

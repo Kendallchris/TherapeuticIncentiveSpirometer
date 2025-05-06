@@ -109,7 +109,7 @@ void Accelerometer::setupMotionInterrupt() {
   // 5. Set THRESH_ACT to moderate threshold
   Wire.beginTransmission(i2cAddress);
   Wire.write(0x24);
-  Wire.write(0x20);  // Moderate threshold
+  Wire.write(0x15);  // Moderate threshold
   Wire.endTransmission();
   delay(10);
 
