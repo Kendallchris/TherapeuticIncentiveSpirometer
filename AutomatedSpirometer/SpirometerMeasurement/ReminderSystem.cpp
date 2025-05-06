@@ -1,6 +1,7 @@
 #include "ReminderSystem.h"
+#include "HomeScreen.h"
 #include "Effects.h"
-#include <Arduino.h>  // for Serial
+#include <Arduino.h>
 
 extern void turnOnDisplay();
 extern void wakeUp();
@@ -9,7 +10,7 @@ extern void resetAllScreenFlags();
 ReminderSystem::ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
   : buttonPin(buttonPin),
     isAsleep(sleepState),
-    lastReminderTime(millis()),  // <--- use millis instead of now()
+    lastReminderTime(millis()),
     tft(display),
     dataLogger(logger),
     reminderScreen(display, logger) {
@@ -17,7 +18,7 @@ ReminderSystem::ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepStat
 }
 
 void ReminderSystem::resetTimer() {
-  lastReminderTime = millis();  // <--- use millis()
+  lastReminderTime = millis();
 }
 
 void ReminderSystem::checkReminder() {
@@ -54,7 +55,6 @@ void ReminderSystem::checkReminder() {
     pendingReminderScreen = false;  // clear pending
   }
 
-  // 🧠 Corrected logic: Use millis instead of now()
   if (!isAsleep && (millis() - lastReminderTime >= reminderInterval) && !Effects::isScreenFlashing()) {
     triggerReminder();
     resetTimer();

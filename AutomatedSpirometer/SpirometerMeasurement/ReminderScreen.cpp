@@ -1,6 +1,7 @@
 #include "ReminderScreen.h"
 #include "Effects.h"
 #include "UIHelpers.h"
+#include "HomeScreen.h"
 #include <Arduino.h>
 
 bool ReminderScreen::isActive = false;

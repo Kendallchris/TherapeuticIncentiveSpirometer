@@ -1,11 +1,9 @@
 #ifndef REMINDERSYSTEM_H
 #define REMINDERSYSTEM_H
 
-#include <Arduino.h>
 #include <TFT_eSPI.h>
-#include "ReminderScreen.h"
 #include "DataLogger.h"
-#include "HomeScreen.h"
+#include "ReminderScreen.h"
 
 class ReminderSystem {
 public:
@@ -28,8 +26,8 @@ private:
   bool &isAsleep;
   bool reminderTriggered = false;
   unsigned long lastReminderTime;
-  // const unsigned long reminderInterval = 600000UL;  // 10 minutes in milliseconds
-  const unsigned long reminderInterval = 70000UL;  // 70 seconds in milliseconds
+  const unsigned long reminderInterval = 600000UL;  // 10 minutes in milliseconds
+  // const unsigned long reminderInterval = 70000UL;  // 70 seconds in milliseconds for testig purposes
   unsigned long sleptDuration = 0;
 
   TFT_eSPI &tft;

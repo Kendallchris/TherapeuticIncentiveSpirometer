@@ -1,18 +1,16 @@
 // TODO:
-//       Occassionally still getting stuck on measuremnt countdown and occassionally getting stuck in "Waiting for object..."
-//       After exactly 1 hour, whole system freezes up (on the home screen) and needs a power cycle
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
-#include <Wire.h>  // Include Wire library for I2C communication
+#include <Wire.h>
 #include <Snooze.h>
-// #include <esp_task_wdt.h> // Watch Dog Task (will reset device if times out/freezes up for too long) *couldn't figure out how to get the library to be recognized*
 #include "HomeScreen.h"
 #include "DataLogger.h"
 #include "MeasurementScreen.h"
 #include "Accelerometer.h"
 #include "ResetConfirmation.h"
 #include "ReminderSystem.h"
+#include "ReminderScreen.h"
 #include "Effects.h"
 
 // Pin definitions
@@ -77,8 +75,7 @@ volatile bool resetButtonPressed = false;
 // Timer variables
 unsigned long lastActivityTime = 0;
 unsigned long lastResetTime = 0;
-//const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
-const unsigned long sleepDelay = 10000;  // 1 second inactivity for testing purposes
+const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
 const unsigned long detectionDelay = 5000;
 unsigned long measurementStartTime = 0;
 const unsigned long measurementTimeout = 50000;  // > 50 seconds on measurement = fail ... return home
@@ -93,7 +90,7 @@ MeasurementScreen measurementScreen(
   showingSuccess,
   homeScreen);
 DataLogger dataLogger;
-Accelerometer accelerometer(ADXL345_I2C_ADDR, tiltAngleThreshold);
+Accelerometer accelerometer(ADXL345_I2C_ADDR);
 ResetConfirmation resetScreen(tft, dataLogger);
 ReminderSystem reminderSystem(
   buttonPin,
@@ -177,7 +174,6 @@ void setup() {
   Serial.println("Initializing Accelerometer...");
   accelerometer.initialize();
   accelerometer.setupMotionInterrupt();
-  accelerometer.saveReferenceOrientation();
 
   // LVGL init
   lv_init();
@@ -195,10 +191,6 @@ void setup() {
   snoozeButton.pinMode(buttonPin, INPUT_PULLUP, FALLING);            // Green button press
   snoozeResetButton.pinMode(resetButtonPin, INPUT_PULLUP, FALLING);  // Red button press
   snoozeAccel.pinMode(accInteruptPin, INPUT_PULLUP, RISING);
-
-  // Setup watchdog task
-  // esp_task_wdt_init(5, true);  // 5 seconds timeout, panic=true (auto reset)
-  // esp_task_wdt_add(NULL);      // Add current task (loop) to watchdog
 
   // Show home screen
   resetAllScreenFlags();
@@ -223,9 +215,6 @@ void loop() {
   handleResetButton();
   handleMeasurementMode();
   reminderSystem.checkReminder();
-
-  // 🧠 Optional watchdog support
-  // esp_task_wdt_reset();
 
   delay(100);
 }
@@ -426,47 +415,45 @@ void detectObject() {
 
 // Check why we woke and if we should continue to fully wake or return to sleep
 void lightWakeCheck() {
-  Serial.println("[DEBUG] Light wake triggered...");
+  Serial.println("[DEBUG] Light wake triggered…");
 
   bool fullWakeRequired = false;
-  bool timerTriggeredReminder = false;
+  bool callReminderOnWake = false;
 
-  if (buttonPressed || resetButtonPressed) {
+  /* ---------- what caused the wake? ---------- */
+  if (buttonPressed || resetButtonPressed) {  // buttons
     Serial.println("[DEBUG] Button wake detected!");
     fullWakeRequired = true;
     buttonPressed = false;
     resetButtonPressed = false;
-  } else if (accelerometerTriggered) {
-    accelerometerTriggered = false;
-    Serial.println("[DEBUG] Accelerometer triggered, checking tilt...");
 
-    if (accelerometer.detectTilt()) {
-      Serial.println("[DEBUG] Significant tilt detected!");
-      fullWakeRequired = true;
-    } else {
-      Serial.println("[DEBUG] Minor motion only. No full wake needed.");
-    }
-  } else {
+  } else if (accelerometerTriggered) {  // INT1 (ADXL345)
+    accelerometerTriggered = false;
+    Serial.println("[DEBUG] Accelerometer triggered – full wake!");
+    fullWakeRequired = true;  // ← always wake now
+                              //    (tilt test removed)
+
+  } else {  // timer wake
     Serial.println("[DEBUG] Timer wake (light wake only).");
 
-    reminderSystem.handleTimerWake();
+    reminderSystem.handleTimerWake();  // re‑align timer
 
     if (millis() - reminderSystem.getLastReminderTime() >= reminderSystem.getReminderInterval()) {
       Serial.println("[DEBUG] Reminder due after timer wake!");
-      timerTriggeredReminder = true;
+      fullWakeRequired = true;
+      callReminderOnWake = true;  // defer until awake
     }
   }
 
-  if (fullWakeRequired || timerTriggeredReminder) {
-    Serial.println("[DEBUG] Performing full wake...");
-    performFullWake();
+  /* ---------- decide what to do next ---------- */
+  if (fullWakeRequired) {
+    performFullWake();  // power display, etc.
+    if (callReminderOnWake) reminderSystem.triggerReminder();
   } else {
-    Serial.println("[DEBUG] No full wake needed. Re-arming accelerometer and going back to sleep...");
-
-    rearmAccelerometerAfterWake();  // 🛠️ critical addition
-
+    Serial.println("[DEBUG] No full wake needed. Re‑arming INT1 and sleeping…");
+    rearmAccelerometerAfterWake();
     Serial.flush();
-    Snooze.sleep(config);  // Now it will correctly sleep again
+    Snooze.sleep(config);  // go straight back out
   }
 }
 
@@ -489,8 +476,6 @@ void performFullWake() {
 
 void enterSleepMode() {
   Serial.println("[DEBUG] Preparing to enter light sleep mode...");
-
-  accelerometer.saveReferenceOrientation();
 
   // Calculate time until next reminder
   unsigned long timeSinceLastReminder = millis() - reminderSystem.getLastReminderTime();
@@ -561,23 +546,23 @@ void turnOnDisplay() {
 void rearmAccelerometerAfterWake() {
   Serial.println("[DEBUG] Re‑arming accelerometer…");
 
-  /* 1️⃣  Re‑start I²C HW in case LPI2C clock stopped */
+  /* 1️ Re‑start I²C HW in case LPI2C clock stopped */
   Wire.begin();
   delay(1);
 
-  /* 2️⃣  Fresh ADXL345 configuration */
+  /* 2️ Fresh ADXL345 configuration */
   accelerometer.initialize();            // put in measure mode
   accelerometer.setupMotionInterrupt();  // map ACTIVITY → INT1 etc.
 
-  /* 3️⃣  Clear any latched interrupt line **before** we re‑attach */
+  /* 3️ Clear any latched interrupt line **before** we re‑attach */
   accelerometer.clearInterrupt();
 
-  /* 4️⃣  (Re)‑attach INT1 as CHANGE edge so it will fire even if the
+  /* 4️ (Re)‑attach INT1 as CHANGE edge so it will fire even if the
            line was left HIGH after a previous event. */
   detachInterrupt(digitalPinToInterrupt(accInteruptPin));
-  attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, RISING);
 
-  /* 5️⃣  Reset flag so the next edge is seen as new */
+  /* 5️ Reset flag so the next edge is seen as new */
   accelerometerTriggered = false;
 
   Serial.println("[DEBUG] Accelerometer fully re‑armed.");

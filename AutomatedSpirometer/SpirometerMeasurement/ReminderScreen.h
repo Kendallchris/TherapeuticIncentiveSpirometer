@@ -1,10 +1,9 @@
 #ifndef REMINDERSCREEN_H
 #define REMINDERSCREEN_H
 
+#include "DataLogger.h"
 #include <TFT_eSPI.h>
 #include <lvgl.h>
-#include "DataLogger.h"
-#include "HomeScreen.h"
 
 class ReminderScreen {
 public:

@@ -1,4 +1,5 @@
 #include "ResetConfirmation.h"
+#include "HomeScreen.h"
 #include "UIHelpers.h"
 #include <Arduino.h>  // for Serial if needed
 

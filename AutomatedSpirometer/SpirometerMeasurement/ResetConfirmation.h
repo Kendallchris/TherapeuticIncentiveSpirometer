@@ -1,10 +1,9 @@
 #ifndef RESETCONFIRMATION_H
 #define RESETCONFIRMATION_H
 
+#include "DataLogger.h"
 #include <TFT_eSPI.h>
 #include <lvgl.h>
-#include "DataLogger.h"
-#include "HomeScreen.h"
 
 class ResetConfirmation {
 public:

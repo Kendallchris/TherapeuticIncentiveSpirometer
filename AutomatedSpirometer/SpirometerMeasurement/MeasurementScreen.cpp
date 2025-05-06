@@ -3,7 +3,6 @@
 #include "Effects.h"
 #include "UIHelpers.h"
 #include <Arduino.h>
-#include <lvgl.h>
 
 extern void resetAllScreenFlags();
 extern void exitMeasurementMode();

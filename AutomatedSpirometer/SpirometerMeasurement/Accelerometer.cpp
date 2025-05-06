@@ -1,8 +1,7 @@
 #include "Accelerometer.h"
-#include <Arduino.h>  // For Serial and math functions
 
-Accelerometer::Accelerometer(uint8_t address, float tiltThreshold)
-  : i2cAddress(address), tiltAngleThreshold(tiltThreshold), refX(0), refY(0), refZ(0) {}
+Accelerometer::Accelerometer(uint8_t address)
+  : i2cAddress(address) {}
 
 void Accelerometer::initialize() {
   Wire.beginTransmission(i2cAddress);
@@ -24,55 +23,6 @@ void Accelerometer::initialize() {
   Wire.write(0x2D);  // Power control register
   Wire.write(0x08);  // Measurement mode
   Wire.endTransmission();
-}
-
-void Accelerometer::saveReferenceOrientation() {
-  Wire.beginTransmission(i2cAddress);
-  Wire.write(0x32);  // Start with DATAX0 register
-  Wire.endTransmission(false);
-  Wire.requestFrom((uint8_t)i2cAddress, (uint8_t)6, (bool)true);
-
-  refX = Wire.read() | (Wire.read() << 8);
-  refY = Wire.read() | (Wire.read() << 8);
-  refZ = Wire.read() | (Wire.read() << 8);
-
-  Serial.print("Reference Orientation - X: ");
-  Serial.print(refX);
-  Serial.print(", Y: ");
-  Serial.print(refY);
-  Serial.print(", Z: ");
-  Serial.println(refZ);
-}
-
-bool Accelerometer::detectTilt() {
-  Wire.beginTransmission(i2cAddress);
-  Wire.write(0x32);  // Start with DATAX0 register
-  Wire.endTransmission(false);
-  Wire.requestFrom((uint8_t)i2cAddress, (uint8_t)6, (bool)true);
-
-  if (Wire.available() < 6) {
-    Serial.println("Error: Insufficient data received from accelerometer.");
-    return false;
-  }
-
-  int16_t x = Wire.read() | (Wire.read() << 8);
-  int16_t y = Wire.read() | (Wire.read() << 8);
-  int16_t z = Wire.read() | (Wire.read() << 8);
-
-  float dotProduct = (x * refX) + (y * refY) + (z * refZ);
-  float magnitudeCurrent = sqrt((float)(x * x + y * y + z * z));
-  float magnitudeRef = sqrt((float)(refX * refX + refY * refY + refZ * refZ));
-
-  if (magnitudeCurrent == 0 || magnitudeRef == 0) {
-    Serial.println("Error: Magnitude is zero!");
-    return false;
-  }
-
-  float cosTheta = dotProduct / (magnitudeCurrent * magnitudeRef);
-  cosTheta = constrain(cosTheta, -1.0, 1.0);
-  float angle = acos(cosTheta) * 180.0 / PI;
-
-  return (angle > tiltAngleThreshold);
 }
 
 void Accelerometer::setupMotionInterrupt() {
@@ -109,7 +59,7 @@ void Accelerometer::setupMotionInterrupt() {
   // 5. Set THRESH_ACT to moderate threshold
   Wire.beginTransmission(i2cAddress);
   Wire.write(0x24);
-  Wire.write(0x15);  // Moderate threshold
+  Wire.write(0x20);  // Moderate threshold
   Wire.endTransmission();
   delay(10);
 
