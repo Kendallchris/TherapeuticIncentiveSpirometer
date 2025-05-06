@@ -438,7 +438,7 @@ void lightWakeCheck() {
     resetButtonPressed = false;
   }
   else if (accelerometerTriggered) {
-    accelerometerTriggered = false;  // Reset flag early
+    accelerometerTriggered = false;
     Serial.println("[DEBUG] Accelerometer triggered, checking tilt...");
 
     if (accelerometer.detectTilt()) {
@@ -448,10 +448,18 @@ void lightWakeCheck() {
       Serial.println("[DEBUG] Minor motion only. No full wake needed.");
     }
   }
+  else {
+    // No motion, no button -> assume timer wake
+    Serial.println("[DEBUG] Timer wake (light wake only).");
+
+    // Don't full wake; just check if reminder now due
+    reminderSystem.handleTimerWake();
+    reminderSystem.checkReminder();
+  }
 
   if (fullWakeRequired) {
     Serial.println("[DEBUG] Performing full wake...");
-    performFullWake();  // NEW FUNCTION
+    performFullWake(); 
   } else {
     Serial.println("[DEBUG] No full wake needed. Going back to sleep...");
     Snooze.sleep(config);  // Sleep again immediately
@@ -479,9 +487,9 @@ void enterSleepMode() {
 
   accelerometer.saveReferenceOrientation();
 
-  // Check time until next reminder
-  unsigned long timeSinceLastReminder = (now() - reminderSystem.getLastReminderTime()) * 1000;  // in ms
-  unsigned long timeUntilNextReminder = (reminderSystem.getReminderInterval() * 1000) - timeSinceLastReminder;
+  // Calculate time until next reminder
+  unsigned long timeSinceLastReminder = millis() - reminderSystem.getLastReminderTime();
+  unsigned long timeUntilNextReminder = reminderSystem.getReminderInterval() - timeSinceLastReminder;
 
   Serial.print("[DEBUG] Time until next reminder (ms): ");
   Serial.println(timeUntilNextReminder);
@@ -495,9 +503,11 @@ void enterSleepMode() {
   }
 
   unsigned long sleepInterval = timeUntilNextReminder;
+  reminderSystem.prepareForSleep(sleepInterval);
+
   snoozeTimer.setTimer(sleepInterval);
 
-  // Sleep preparation
+  // Put display to sleep
   tft.writecommand(TFT_DISPOFF);
   tft.writecommand(TFT_SLPIN);
   digitalWrite(ledPin, LOW);
