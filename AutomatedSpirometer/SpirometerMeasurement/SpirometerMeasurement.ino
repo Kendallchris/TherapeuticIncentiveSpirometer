@@ -417,43 +417,39 @@ void detectObject() {
 void lightWakeCheck() {
   Serial.println("[DEBUG] Light wake triggered…");
 
-  bool fullWakeRequired = false;
-  bool callReminderOnWake = false;
+  /* ------- figure out WHY we woke up ------- */
+  bool buttonWake = buttonPressed || resetButtonPressed;
+  bool accelWake = accelerometerTriggered;
+  bool timerWake = !buttonWake && !accelWake;  // Snooze‑Timer fired
 
-  /* ---------- what caused the wake? ---------- */
-  if (buttonPressed || resetButtonPressed) {  // buttons
-    Serial.println("[DEBUG] Button wake detected!");
-    fullWakeRequired = true;
-    buttonPressed = false;
-    resetButtonPressed = false;
+  // housekeeping for the flags we just sampled
+  buttonPressed = false;
+  resetButtonPressed = false;
+  accelerometerTriggered = false;
 
-  } else if (accelerometerTriggered) {  // INT1 (ADXL345)
-    accelerometerTriggered = false;
-    Serial.println("[DEBUG] Accelerometer triggered – full wake!");
-    fullWakeRequired = true;  // ← always wake now
-                              //    (tilt test removed)
-
-  } else {  // timer wake
-    Serial.println("[DEBUG] Timer wake (light wake only).");
-
-    reminderSystem.handleTimerWake();  // re‑align timer
-
-    if (millis() - reminderSystem.getLastReminderTime() >= reminderSystem.getReminderInterval()) {
-      Serial.println("[DEBUG] Reminder due after timer wake!");
-      fullWakeRequired = true;
-      callReminderOnWake = true;  // defer until awake
-    }
+  /* ------- keep the reminder clock honest ------- */
+  if (timerWake) {
+    // slept entire interval → slide lastReminderTime forward
+    reminderSystem.handleTimerWake();
+  } else {
+    // woke early (button / accel) → DO NOT run a reminder yet
+    reminderSystem.resetTimer();  // restart the countdown
   }
 
-  /* ---------- decide what to do next ---------- */
+  /* ------- decide whether to go fully awake ------- */
+  bool fullWakeRequired = buttonWake || accelWake || timerWake;
+  bool launchReminderOnWake = timerWake;  // only timer wake may show it
+
   if (fullWakeRequired) {
-    performFullWake();  // power display, etc.
-    if (callReminderOnWake) reminderSystem.triggerReminder();
+    performFullWake();
+    if (launchReminderOnWake) {
+      reminderSystem.triggerReminder();  // flash + ReminderScreen
+    }
   } else {
-    Serial.println("[DEBUG] No full wake needed. Re‑arming INT1 and sleeping…");
+    Serial.println("[DEBUG] No full wake needed. Re‑arming INT1 & sleeping…");
     rearmAccelerometerAfterWake();
     Serial.flush();
-    Snooze.sleep(config);  // go straight back out
+    Snooze.sleep(config);
   }
 }
 
@@ -467,7 +463,7 @@ void performFullWake() {
   homeScreen.show();
   lv_refr_now(NULL);  // Immediate screen redraw
 
-  rearmAccelerometerAfterWake();  // 🛠️ now use helper instead of duplicating
+  rearmAccelerometerAfterWake();  // Now use helper instead of duplicating
 
   reminderSystem.resetTimer();
 
@@ -524,7 +520,7 @@ void enterSleepMode() {
   // --- 🛠️ AFTER WAKEUP ---
   isAsleep = false;
 
-  rearmAccelerometerAfterWake();  // 🛠️ after waking up, reconfigure accelerometer
+  rearmAccelerometerAfterWake();  // After waking up, reconfigure accelerometer
 
   lightWakeCheck();  // Then check if full wake needed
 }
