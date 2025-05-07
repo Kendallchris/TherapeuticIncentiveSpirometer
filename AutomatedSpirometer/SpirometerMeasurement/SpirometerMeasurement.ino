@@ -78,7 +78,7 @@ unsigned long lastResetTime = 0;
 const unsigned long sleepDelay = 60000;  // 60 seconds inactivity
 const unsigned long detectionDelay = 5000;
 unsigned long measurementStartTime = 0;
-const unsigned long measurementTimeout = 50000;  // > 50 seconds on measurement = fail ... return home
+const unsigned long measurementTimeout = 45000;  // > 45 seconds on measurement = fail ... return home
 unsigned long successStartTime = 0;
 const unsigned long successDuration = 8000;
 
@@ -532,11 +532,11 @@ void wakeUp() {
 
 void turnOnDisplay() {
   digitalWrite(screenBacklightPin, HIGH);
-  delay(50);
+  delay(10);
   tft.writecommand(TFT_SLPOUT);
-  delay(150);
+  delay(100);
   tft.writecommand(TFT_DISPON);
-  delay(50);
+  delay(10);
 }
 
 void rearmAccelerometerAfterWake() {

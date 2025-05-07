@@ -16,11 +16,17 @@ public:
   static void updateScreenFlash();
   static void stopScreenFlash();
 
+  struct ToneStep {
+    int frequency;
+    int duration;
+  };
+
   static void updateTone();
   static void stopTone();
   static void successTone();
   static void measurementsCompleteTone();
   static void reminderTone();
+  static void startToneSequence(std::initializer_list<ToneStep> sequence);
 
   static bool isScreenFlashing();
 
@@ -46,10 +52,7 @@ private:
   // Tone
   static int buzzerPin;
   static const int maxToneSequenceLength = 20;
-  struct ToneStep {
-    int frequency;
-    int duration;
-  };
+  
   static ToneStep toneSequence[maxToneSequenceLength];
   static int toneCount;
   static int currentToneIndex;

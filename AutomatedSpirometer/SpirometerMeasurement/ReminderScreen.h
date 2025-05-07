@@ -8,6 +8,7 @@
 class ReminderScreen {
 public:
   ReminderScreen(TFT_eSPI &display, DataLogger &logger);
+  void prepare();
   void show();
   void dismissReminder();
   static bool isActive;

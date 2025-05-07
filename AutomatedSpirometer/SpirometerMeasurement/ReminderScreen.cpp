@@ -11,22 +11,16 @@ ReminderScreen::ReminderScreen(TFT_eSPI &display, DataLogger &logger)
 
 extern void resetAllScreenFlags();
 
-void ReminderScreen::show() {
-  Effects::stopScreenFlash();  // stop any flashing effects first
+void ReminderScreen::prepare() {
+  if (screen != nullptr) return;  // Already prepared
 
-  isActive = true;
-  Serial.println("Reminder screen is now active");
-
-  lv_obj_clean(lv_scr_act());
-  lv_obj_t *screen = lv_obj_create(NULL);
+  screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-  ui_switch_screen(screen);
 
   // --- Button ---
   lv_obj_t *dismiss_btn = lv_btn_create(screen);
   lv_obj_set_size(dismiss_btn, 200, 40);
   lv_obj_align(dismiss_btn, LV_ALIGN_TOP_MID, 0, 10);
-
   lv_obj_add_event_cb(dismiss_btn, ReminderScreen::dismissEventHandler, LV_EVENT_CLICKED, this);
 
   lv_obj_t *dismiss_label = lv_label_create(dismiss_btn);
@@ -44,8 +38,21 @@ void ReminderScreen::show() {
   lv_label_set_text(message_label, "Time to take a measurement!");
   lv_obj_set_style_text_align(message_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_align(message_label, LV_ALIGN_CENTER, 0, -40);
+}
 
-  lv_refr_now(NULL);  // force immediate refresh
+void ReminderScreen::show() {
+  Effects::stopScreenFlash();  // stop any flashing effects first
+
+  isActive = true;
+  Serial.println("Reminder screen is now active");
+
+  if (screen == nullptr) {
+    prepare();  // Fallback if preload somehow failed
+  }
+
+  ui_switch_screen(screen);   // PROPER safe load + old screen free
+
+  lv_refr_now(NULL);  // Force immediate refresh
 }
 
 void ReminderScreen::dismissReminder() {

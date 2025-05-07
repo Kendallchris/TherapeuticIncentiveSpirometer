@@ -71,8 +71,10 @@ void ReminderSystem::triggerReminder() {
   reminderTriggered = true;
 
   // --- Start flashing first ---
-  Effects::reminderTone();
   Effects::startVibration(3, 1000, 500);
+  Effects::startToneSequence({
+    {880, 200}, {988, 200}, {1047, 250}, {0, 200}, {1047, 100}, {1319, 150}
+  });
   Effects::startScreenFlash(3, 1000, 500);
 
   // Wait until flashing is complete to show the ReminderScreen
@@ -86,6 +88,8 @@ void ReminderSystem::dismissReminder() {
 
 void ReminderSystem::prepareForSleep(unsigned long sleepDuration) {
   sleptDuration = sleepDuration;
+
+  reminderScreen.prepare(); // prep the reminder screen to take some load off CPU during reminder after wakeup
 }
 
 void ReminderSystem::handleTimerWake() {

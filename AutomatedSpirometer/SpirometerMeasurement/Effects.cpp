@@ -139,7 +139,7 @@ void Effects::updateTone() {
   if (!tonePlaying) return;
 
   unsigned long now = millis();
-  ToneStep &step = toneSequence[currentToneIndex];
+  ToneStep& step = toneSequence[currentToneIndex];
 
   if (!inInterDelay && now - toneStartTime >= (unsigned long)step.duration) {
     noTone(buzzerPin);
@@ -209,6 +209,25 @@ void Effects::reminderTone() {
   toneSequence[toneCount++] = { 1047, 100 };
   toneSequence[toneCount++] = { 1319, 150 };
   startToneSequence();
+}
+
+void Effects::startToneSequence(std::initializer_list<ToneStep> sequence) {
+  clearToneQueue();  // Make sure nothing lingering
+  toneCount = 0;
+
+  for (const auto& step : sequence) {
+    if (toneCount < maxToneSequenceLength) {
+      toneSequence[toneCount++] = step;
+    }
+  }
+
+  if (toneCount > 0) {
+    tonePlaying = true;
+    currentToneIndex = 0;
+    toneStartTime = millis();
+    tone(buzzerPin, toneSequence[0].frequency);
+    inInterDelay = false;
+  }
 }
 
 bool Effects::isScreenFlashing() {
