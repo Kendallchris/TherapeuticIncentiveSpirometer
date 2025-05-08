@@ -365,7 +365,7 @@ void exitMeasurementMode() {
   lv_refr_now(NULL);          // Force an immediate refresh (avoid stale screen)
 
   // Update lastActivityTime to prevent immediate sleep after exit
-  lastActivityTime = millis();
+  // lastActivityTime = millis();
 }
 
 void detectObject() {
