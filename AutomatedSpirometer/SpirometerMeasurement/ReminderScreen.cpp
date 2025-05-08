@@ -42,6 +42,8 @@ void ReminderScreen::prepare() {
 
 void ReminderScreen::show() {
   Effects::stopScreenFlash();  // stop any flashing effects first
+  Effects::stopVibration();
+  Effects::stopTone();
 
   isActive = true;
   Serial.println("Reminder screen is now active");

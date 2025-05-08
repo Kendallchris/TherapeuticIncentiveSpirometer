@@ -23,6 +23,11 @@ const int vibrationMotorPin = 23;
 const int buzzerPin = 9;        // Using PIEZO BUZZER TRANSDUCER
 const int accInteruptPin = 17;  // INT1 hardware interrupt pin for accelerometer to wake from sleep
 
+SnoozeDigital digital;
+SnoozeTimer timer;
+
+SnoozeBlock config_teensy40(timer, digital);
+
 SnoozeDigital snoozeButton;       // Wake by green button
 SnoozeDigital snoozeResetButton;  // Wake by reset button
 SnoozeTimer snoozeTimer;          // Wake by reminder timer
@@ -46,9 +51,6 @@ SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 
 #define MAX_TONE_SEQUENCE_LENGTH 20
 #define REMINDER_SOON_THRESHOLD_MS 30000  // 30 seconds threshold to trigger reminder immediately before sleep
-
-// Angle threshold for tilt detection (in degrees)
-const float tiltAngleThreshold = 30.0;
 
 struct ToneStep {
   int frequency;
@@ -287,8 +289,6 @@ void handleMeasurementMode() {
     lastActivityTime = millis();
 
     if (!measurementMode) {
-      reminderSystem.resetTimer();
-
       Serial.println("Entering measurement mode...");
       // Instead of resetAllScreenFlags(), do partial:
       ResetConfirmation::isActive = false;
@@ -413,116 +413,80 @@ void detectObject() {
   }
 }
 
-// Check why we woke and if we should continue to fully wake or return to sleep
-void lightWakeCheck() {
-  Serial.println("[DEBUG] Light wake triggered…");
+void lightWakeCheck(int who) {
+  Serial.print("[DEBUG] Light wake triggered, who = ");
+  Serial.println(who);
 
-  /* ------- figure out WHY we woke up ------- */
-  bool buttonWake = buttonPressed || resetButtonPressed;
-  bool accelWake = accelerometerTriggered;
-  bool timerWake = !buttonWake && !accelWake;  // Snooze‑Timer fired
-
-  // housekeeping for the flags we just sampled
+  // Clear interrupt flags to prevent stale triggers
   buttonPressed = false;
   resetButtonPressed = false;
   accelerometerTriggered = false;
 
-  /* ------- keep the reminder clock honest ------- */
-  if (timerWake) {
-    // slept entire interval → slide lastReminderTime forward
-    reminderSystem.handleTimerWake();
-  } else {
-    // woke early (button / accel) → DO NOT run a reminder yet
-    reminderSystem.resetTimer();  // restart the countdown
-  }
-
-  /* ------- decide whether to go fully awake ------- */
-  bool fullWakeRequired = buttonWake || accelWake || timerWake;
-  bool launchReminderOnWake = timerWake;  // only timer wake may show it
-
-  if (fullWakeRequired) {
+  if (who == buttonPin) {
+    Serial.println("[DEBUG] Wake caused by GREEN BUTTON (measurement button).");
     performFullWake();
-    if (launchReminderOnWake) {
-      reminderSystem.triggerReminder();  // flash + ReminderScreen
-    }
+  } else if (who == resetButtonPin) {
+    Serial.println("[DEBUG] Wake caused by RED RESET BUTTON.");
+    performFullWake();
+  } else if (who == accInteruptPin) {
+    Serial.println("[DEBUG] Wake caused by ACCELEROMETER.");
+    performFullWake();
+  } else if (who == 36) { // Timer wake-up (verify this value in Snooze library source)
+    Serial.println("[DEBUG] Wake caused by TIMER (reminder due).");
+    performFullWake();
+    reminderSystem.triggerReminder();
   } else {
-    Serial.println("[DEBUG] No full wake needed. Re‑arming INT1 & sleeping…");
-    rearmAccelerometerAfterWake();
-    Serial.flush();
-    Snooze.sleep(config);
+    Serial.println("[DEBUG] Wake caused by UNKNOWN source.");
+    performFullWake();
   }
 }
 
 void performFullWake() {
-  turnOnDisplay();        // FIRST - power up the display properly
-  resetAllScreenFlags();  // Clear screen states
+  Serial.println("[DEBUG] Performing full wake...");
 
-  isAsleep = false;  // Update sleep state
+  turnOnDisplay();
+  resetAllScreenFlags();
+  isAsleep = false;
 
-  Serial.println("[DEBUG] Reloading Home Screen after full wake...");
   homeScreen.show();
-  lv_refr_now(NULL);  // Immediate screen redraw
+  lv_refr_now(NULL);
 
-  rearmAccelerometerAfterWake();  // Now use helper instead of duplicating
+  delay(50);
+  rearmAccelerometerAfterWake();
 
-  reminderSystem.resetTimer();
-
-  lastActivityTime = millis();  // Reset idle timer
+  lastActivityTime = millis();  // Always update when fully waking
 }
 
 void enterSleepMode() {
-  Serial.println("[DEBUG] Preparing to enter light sleep mode...");
+  Serial.println("[DEBUG] Preparing to enter sleep mode...");
 
-  // Calculate time until next reminder
-  unsigned long timeSinceLastReminder = millis() - reminderSystem.getLastReminderTime();
-  unsigned long timeUntilNextReminder = reminderSystem.getReminderInterval() - timeSinceLastReminder;
+  unsigned long sleepMs = reminderSystem.getReminderInterval() - sleepDelay;
+  if (sleepMs == 0) sleepMs = 100;
 
-  Serial.print("[DEBUG] Time until next reminder (ms): ");
-  Serial.println(timeUntilNextReminder);
+  uint32_t sleepSec = sleepMs / 1000;
+  if (sleepSec == 0) sleepSec = 1;
 
-  if (timeUntilNextReminder <= REMINDER_SOON_THRESHOLD_MS) {
-    Serial.println("[DEBUG] Reminder due soon, triggering immediately before sleep.");
-    reminderSystem.triggerReminder();
-    reminderSystem.resetTimer();
-    lastActivityTime = millis();
-    return;
-  }
+  Serial.print("[DEBUG] Sleep interval set (seconds): ");
+  Serial.println(sleepSec);
 
-  unsigned long sleepIntervalMs = timeUntilNextReminder;
-  if (sleepIntervalMs == 0) {
-    sleepIntervalMs = 100;  // Prevent 0 sleep interval crash
-  }
+  snoozeTimer.setTimer(sleepSec);
 
-  reminderSystem.prepareForSleep(sleepIntervalMs);
-
-  uint32_t sleepIntervalSec = (sleepIntervalMs + 999) / 1000;  // round up
-
-  if (sleepIntervalSec == 0) {
-    sleepIntervalSec = 1;  // Snooze requires minimum 1 second
-  }
-
-  Serial.print("[DEBUG] Sleep interval set to (seconds): ");
-  Serial.println(sleepIntervalSec);
-
-  snoozeTimer.setTimer(sleepIntervalSec);
-
-  // Put display to sleep
+  // Sleep the display
   tft.writecommand(TFT_DISPOFF);
   tft.writecommand(TFT_SLPIN);
   digitalWrite(ledPin, LOW);
   digitalWrite(screenBacklightPin, LOW);
 
+  accelerometer.clearInterrupt();
+
   isAsleep = true;
-
   Serial.flush();
-  Snooze.sleep(config);
 
-  // --- 🛠️ AFTER WAKEUP ---
+  int who = Snooze.sleep(config);  // Sleep returns an int
+
   isAsleep = false;
 
-  rearmAccelerometerAfterWake();  // After waking up, reconfigure accelerometer
-
-  lightWakeCheck();  // Then check if full wake needed
+  lightWakeCheck(who);  // Pass int to lightWakeCheck
 }
 
 void wakeUp() {
@@ -542,24 +506,16 @@ void turnOnDisplay() {
 void rearmAccelerometerAfterWake() {
   Serial.println("[DEBUG] Re‑arming accelerometer…");
 
-  /* 1️ Re‑start I²C HW in case LPI2C clock stopped */
   Wire.begin();
   delay(1);
 
-  /* 2️ Fresh ADXL345 configuration */
-  accelerometer.initialize();            // put in measure mode
-  accelerometer.setupMotionInterrupt();  // map ACTIVITY → INT1 etc.
-
-  /* 3️ Clear any latched interrupt line **before** we re‑attach */
+  accelerometer.initialize();
+  delay(5);  // 🛠 slight delay here helps prevent spurious INT
+  accelerometer.setupMotionInterrupt();
   accelerometer.clearInterrupt();
 
-  /* 4️ (Re)‑attach INT1 as CHANGE edge so it will fire even if the
-           line was left HIGH after a previous event. */
   detachInterrupt(digitalPinToInterrupt(accInteruptPin));
   attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, RISING);
-
-  /* 5️ Reset flag so the next edge is seen as new */
-  accelerometerTriggered = false;
 
   Serial.println("[DEBUG] Accelerometer fully re‑armed.");
 }

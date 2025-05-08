@@ -10,39 +10,30 @@ extern void resetAllScreenFlags();
 ReminderSystem::ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
   : buttonPin(buttonPin),
     isAsleep(sleepState),
-    lastReminderTime(millis()),
     tft(display),
     dataLogger(logger),
     reminderScreen(display, logger) {
   pinMode(buttonPin, INPUT_PULLUP);
 }
 
-void ReminderSystem::resetTimer() {
-  lastReminderTime = millis();
-}
-
 void ReminderSystem::checkReminder() {
-  static bool pendingReminderScreen = false;
-  static unsigned long flashFinishTime = 0;
+  /* This function now does exactly one job:
+     - wait until flashing is done, then show ReminderScreen. */
 
-  if (ReminderScreen::isActive && digitalRead(buttonPin) == LOW) {
-    Serial.println("Dismissing reminder via hardware button...");
-    dismissReminder();
-    delay(300);
-    return;
-  }
+  static bool pendingScreen   = false;
+  static unsigned long flashDoneAt = 0;
 
-  if (reminderTriggered && !Effects::isScreenFlashing() && !pendingReminderScreen) {
-    Serial.println("Flashing complete. Preparing to show reminder screen...");
+  /* 1.  Detect end-of-flash sequence */
+  if (reminderTriggered && !Effects::isScreenFlashing() && !pendingScreen) {
+    Serial.println("[REM] Flash finished, scheduling ReminderScreen…");
     reminderTriggered = false;
-    pendingReminderScreen = true;
-    flashFinishTime = millis();  // mark when flash finished
-    return;
+    pendingScreen     = true;
+    flashDoneAt       = millis();
+    return;                           // wait 200 ms before showing screen
   }
 
-  if (pendingReminderScreen && (millis() - flashFinishTime >= 200)) {  // wait 200ms buffer
-    Serial.println("Actually showing reminder screen now...");
-
+  /* 2.  Actually show the ReminderScreen after small buffer */
+  if (pendingScreen && (millis() - flashDoneAt >= 200)) {
     if (isAsleep) {
       turnOnDisplay();
       isAsleep = false;
@@ -52,12 +43,8 @@ void ReminderSystem::checkReminder() {
     ReminderScreen::isActive = true;
     reminderScreen.show();
 
-    pendingReminderScreen = false;  // clear pending
-  }
-
-  if (!isAsleep && (millis() - lastReminderTime >= reminderInterval) && !Effects::isScreenFlashing()) {
-    triggerReminder();
-    resetTimer();
+    pendingScreen = false;
+    Serial.println("[REM] ReminderScreen displayed.");
   }
 }
 
@@ -87,14 +74,5 @@ void ReminderSystem::dismissReminder() {
 }
 
 void ReminderSystem::prepareForSleep(unsigned long sleepDuration) {
-  sleptDuration = sleepDuration;
-
   reminderScreen.prepare(); // prep the reminder screen to take some load off CPU during reminder after wakeup
-}
-
-void ReminderSystem::handleTimerWake() {
-  if (sleptDuration > 0) {
-    lastReminderTime += sleptDuration;
-    sleptDuration = 0;  // Reset after applying
-  }
 }
