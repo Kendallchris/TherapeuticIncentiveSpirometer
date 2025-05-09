@@ -70,6 +70,6 @@ void ReminderSystem::dismissReminder() {
   reminderScreen.dismissReminder();
 }
 
-void ReminderSystem::prepareForSleep(unsigned long sleepDuration) {
+void ReminderSystem::prepareForSleep() {
   reminderScreen.prepare(); // prep the reminder screen to take some load off CPU during reminder after wakeup
 }

@@ -14,7 +14,7 @@ public:
     return reminderInterval;
   }
   void triggerReminder();
-  void prepareForSleep(unsigned long sleepDuration);
+  void prepareForSleep();
   static bool reminderTriggered;
 
 private:

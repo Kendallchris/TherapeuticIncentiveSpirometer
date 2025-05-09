@@ -455,6 +455,13 @@ void enterSleepMode() {
 
   snoozeTimer.setTimer(sleepSec);
 
+  if (ReminderScreen::isActive) {
+    Serial.println("[DEBUG] ReminderScreen is still active before sleep — auto dismissing.");
+    reminderSystem.dismissReminder();  // Properly cleans up screen and sets screen = nullptr
+  }
+
+  reminderSystem.prepareForSleep();
+
   // Sleep the display
   tft.writecommand(TFT_DISPOFF);
   tft.writecommand(TFT_SLPIN);
