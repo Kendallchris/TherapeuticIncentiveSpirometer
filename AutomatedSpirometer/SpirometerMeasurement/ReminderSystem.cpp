@@ -7,6 +7,8 @@ extern void turnOnDisplay();
 extern void wakeUp();
 extern void resetAllScreenFlags();
 
+bool ReminderSystem::reminderTriggered = false;
+
 ReminderSystem::ReminderSystem(int buttonPin, TFT_eSPI &display, bool &sleepState, DataLogger &logger)
   : buttonPin(buttonPin),
     isAsleep(sleepState),
@@ -20,20 +22,15 @@ void ReminderSystem::checkReminder() {
   /* This function now does exactly one job:
      - wait until flashing is done, then show ReminderScreen. */
 
-  static bool pendingScreen   = false;
-  static unsigned long flashDoneAt = 0;
-
-  /* 1.  Detect end-of-flash sequence */
-  if (reminderTriggered && !Effects::isScreenFlashing() && !pendingScreen) {
+  if (reminderTriggered && !Effects::isScreenFlashing() && !pendingReminderScreen) {
     Serial.println("[REM] Flash finished, scheduling ReminderScreen…");
     reminderTriggered = false;
-    pendingScreen     = true;
-    flashDoneAt       = millis();
-    return;                           // wait 200 ms before showing screen
+    pendingReminderScreen = true;
+    flashDoneAt = millis();
+    return;
   }
 
-  /* 2.  Actually show the ReminderScreen after small buffer */
-  if (pendingScreen && (millis() - flashDoneAt >= 200)) {
+  if (pendingReminderScreen && (millis() - flashDoneAt >= 200)) {
     if (isAsleep) {
       turnOnDisplay();
       isAsleep = false;
@@ -43,7 +40,7 @@ void ReminderSystem::checkReminder() {
     ReminderScreen::isActive = true;
     reminderScreen.show();
 
-    pendingScreen = false;
+    pendingReminderScreen = false;
     Serial.println("[REM] ReminderScreen displayed.");
   }
 }

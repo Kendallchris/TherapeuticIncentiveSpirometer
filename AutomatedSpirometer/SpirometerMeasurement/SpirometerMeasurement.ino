@@ -50,7 +50,6 @@ SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 #define TFT_HEIGHT ROTATED_HEIGHT
 
 #define MAX_TONE_SEQUENCE_LENGTH 20
-#define REMINDER_SOON_THRESHOLD_MS 30000  // 30 seconds threshold to trigger reminder immediately before sleep
 
 struct ToneStep {
   int frequency;
@@ -109,20 +108,6 @@ void handleResetButton();
 void handleMeasurementMode();
 void exitMeasurementMode();
 void detectObject();
-void onAccelerometerInterrupt();
-
-void onAccelerometerInterrupt() {
-  accelerometerTriggered = true;
-  accelerometer.clearInterrupt();
-}
-
-void onButtonInterrupt() {
-  buttonPressed = true;
-}
-
-void onResetButtonInterrupt() {
-  resetButtonPressed = true;
-}
 
 // Use a safer "partial reset" that carefully sets only certain flags, if truly needed.
 void resetAllScreenFlags() {
@@ -160,10 +145,6 @@ void setup() {
 
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
-
-  attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, RISING);
-  attachInterrupt(digitalPinToInterrupt(buttonPin), onButtonInterrupt, FALLING);
-  attachInterrupt(digitalPinToInterrupt(resetButtonPin), onResetButtonInterrupt, FALLING);
 
   Effects::beginTone(buzzerPin);  // could probably combine this with 'begin' for simplicity
   Effects::begin(vibrationMotorPin, screenBacklightPin);
@@ -448,8 +429,11 @@ void performFullWake() {
   resetAllScreenFlags();
   isAsleep = false;
 
-  homeScreen.show();
-  lv_refr_now(NULL);
+  // Only show HomeScreen if a reminder is NOT pending
+  if (!ReminderScreen::isActive && !ReminderSystem::reminderTriggered) {
+    homeScreen.show();
+    lv_refr_now(NULL);
+  }
 
   delay(50);
   rearmAccelerometerAfterWake();
@@ -513,9 +497,6 @@ void rearmAccelerometerAfterWake() {
   delay(5);  // 🛠 slight delay here helps prevent spurious INT
   accelerometer.setupMotionInterrupt();
   accelerometer.clearInterrupt();
-
-  detachInterrupt(digitalPinToInterrupt(accInteruptPin));
-  attachInterrupt(digitalPinToInterrupt(accInteruptPin), onAccelerometerInterrupt, RISING);
 
   Serial.println("[DEBUG] Accelerometer fully re‑armed.");
 }

@@ -15,13 +15,15 @@ public:
   }
   void triggerReminder();
   void prepareForSleep(unsigned long sleepDuration);
+  static bool reminderTriggered;
 
 private:
   int buttonPin;  // Store button pin reference
   bool &isAsleep;
-  bool reminderTriggered = false;
   const unsigned long reminderInterval = 600000UL;  // 10 minutes in milliseconds
   unsigned long sleptDuration = 0;
+  bool pendingReminderScreen = false;
+  unsigned long flashDoneAt = 0;
 
   TFT_eSPI &tft;
   DataLogger &dataLogger;

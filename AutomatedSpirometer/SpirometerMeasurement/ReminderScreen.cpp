@@ -48,7 +48,7 @@ void ReminderScreen::show() {
   isActive = true;
   Serial.println("Reminder screen is now active");
 
-  if (screen == nullptr) {
+  if (screen == nullptr || !lv_obj_is_valid(screen)) {
     prepare();  // Fallback if preload somehow failed
   }
 
@@ -67,9 +67,11 @@ void ReminderScreen::dismissReminder() {
   resetAllScreenFlags();
 
   // 🛠️ Create a NEW screen properly
-  lv_obj_clean(lv_scr_act());
   lv_obj_t *blank = lv_obj_create(NULL);
   lv_obj_set_size(blank, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+  ui_switch_screen(blank);  // frees Reminder screen
+
+  screen = nullptr;
   ui_switch_screen(blank);  // frees Reminder screen
 
   HomeScreen homeScreen(tft);
