@@ -1,10 +1,10 @@
-#include "ReminderSystem.h"
-#include "HomeScreen.h"
-#include "Effects.h"
+#include "../include/ReminderSystem.h"
+#include "../include/HomeScreen.h"
+#include "../include/Effects.h"
 #include <Arduino.h>
 
 extern void turnOnDisplay();
-extern void wakeUp();
+extern void performFullWake();
 extern void resetAllScreenFlags();
 
 bool ReminderSystem::reminderTriggered = false;
@@ -49,7 +49,7 @@ void ReminderSystem::triggerReminder() {
   Serial.println("Reminder triggered: Time to take a measurement!");
 
   if (isAsleep) {
-    wakeUp();
+    performFullWake();
   }
 
   reminderTriggered = true;

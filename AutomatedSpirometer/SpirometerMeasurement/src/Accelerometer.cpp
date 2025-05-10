@@ -1,4 +1,4 @@
-#include "Accelerometer.h"
+#include "../include/Accelerometer.h"
 
 Accelerometer::Accelerometer(uint8_t address)
   : i2cAddress(address) {}

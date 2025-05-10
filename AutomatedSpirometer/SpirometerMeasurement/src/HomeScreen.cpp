@@ -1,7 +1,7 @@
-#include "HomeScreen.h"
+#include "../include/HomeScreen.h"
 #include <lvgl.h>
-#include "DataLogger.h"
-#include "UIHelpers.h"
+#include "../include/DataLogger.h"
+#include "../include/UIHelpers.h"
 
 extern DataLogger dataLogger;  // Use the global defined in .ino
 

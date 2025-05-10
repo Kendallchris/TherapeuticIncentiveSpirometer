@@ -1,17 +1,15 @@
-// TODO:
-
 #include <TFT_eSPI.h>
 #include <lvgl.h>
 #include <Wire.h>
 #include <Snooze.h>
-#include "HomeScreen.h"
-#include "DataLogger.h"
-#include "MeasurementScreen.h"
-#include "Accelerometer.h"
-#include "ResetConfirmation.h"
-#include "ReminderSystem.h"
-#include "ReminderScreen.h"
-#include "Effects.h"
+#include "./include/HomeScreen.h"
+#include "./include/DataLogger.h"
+#include "./include/MeasurementScreen.h"
+#include "./include/Accelerometer.h"
+#include "./include/ResetConfirmation.h"
+#include "./include/ReminderSystem.h"
+#include "./include/ReminderScreen.h"
+#include "./include/Effects.h"
 
 // Pin definitions
 const int ledPin = 13;          // Pin for the onboard LED
@@ -23,11 +21,7 @@ const int vibrationMotorPin = 23;
 const int buzzerPin = 9;        // Using PIEZO BUZZER TRANSDUCER
 const int accInteruptPin = 17;  // INT1 hardware interrupt pin for accelerometer to wake from sleep
 
-SnoozeDigital digital;
-SnoozeTimer timer;
-
-SnoozeBlock config_teensy40(timer, digital);
-
+// Snooze configuration
 SnoozeDigital snoozeButton;       // Wake by green button
 SnoozeDigital snoozeResetButton;  // Wake by reset button
 SnoozeTimer snoozeTimer;          // Wake by reminder timer
@@ -37,7 +31,7 @@ SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 // ADXL345 I2C Address
 #define ADXL345_I2C_ADDR 0x53
 
-// Define ILI9341 sleep and wake commands (ILI9341_DRIVER doesn't define these for some reason but ILI9488_DRIVER - used for 3.5" display - does)
+// Define ILI9341 sleep and wake commands
 #define TFT_SLPIN 0x10   // Sleep In
 #define TFT_SLPOUT 0x11  // Sleep Out
 
@@ -51,11 +45,13 @@ SnoozeBlock config(snoozeButton, snoozeResetButton, snoozeTimer, snoozeAccel);
 
 #define MAX_TONE_SEQUENCE_LENGTH 20
 
+// Tone step structure
 struct ToneStep {
   int frequency;
   int duration;
 };
 
+// TFT and LVGL buffer
 TFT_eSPI tft = TFT_eSPI();
 lv_color_t buf[TFT_WIDTH * 20];
 lv_disp_draw_buf_t draw_buf;
@@ -102,7 +98,6 @@ ReminderScreen reminderScreen(tft, dataLogger);
 
 // Forward declarations
 void enterSleepMode();
-void wakeUp();
 void handleSleepMode();
 void handleResetButton();
 void handleMeasurementMode();
@@ -480,11 +475,6 @@ void enterSleepMode() {
   lightWakeCheck(who);  // Pass int to lightWakeCheck
 }
 
-void wakeUp() {
-  Serial.println("[DEBUG] Calling performFullWake...");
-  performFullWake();
-}
-
 void turnOnDisplay() {
   digitalWrite(screenBacklightPin, HIGH);
   delay(10);
@@ -501,7 +491,7 @@ void rearmAccelerometerAfterWake() {
   delay(1);
 
   accelerometer.initialize();
-  delay(5);  // 🛠 slight delay here helps prevent spurious INT
+  delay(5);  // Slight delay here helps prevent spurious INT
   accelerometer.setupMotionInterrupt();
   accelerometer.clearInterrupt();
 

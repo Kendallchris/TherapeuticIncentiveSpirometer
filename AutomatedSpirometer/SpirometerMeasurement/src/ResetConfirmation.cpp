@@ -1,7 +1,7 @@
-#include "ResetConfirmation.h"
-#include "HomeScreen.h"
-#include "UIHelpers.h"
-#include <Arduino.h>  // for Serial if needed
+#include "../include/ResetConfirmation.h"
+#include "../include/HomeScreen.h"
+#include "../include/UIHelpers.h"
+#include <Arduino.h>
 
 bool ResetConfirmation::isActive = false;  // Initialize the flag
 

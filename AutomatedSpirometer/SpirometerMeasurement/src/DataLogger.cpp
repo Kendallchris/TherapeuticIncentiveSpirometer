@@ -1,5 +1,5 @@
-#include "DataLogger.h"
-#include "DataStorage.h"
+#include "../include/DataLogger.h"
+#include "../include/DataStorage.h"
 #include <Arduino.h>  // for Serial
 
 DataLogger::DataLogger() {

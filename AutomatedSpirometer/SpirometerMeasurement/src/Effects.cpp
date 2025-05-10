@@ -1,4 +1,4 @@
-#include "Effects.h"
+#include "../include/Effects.h"
 
 int Effects::vibrationPin = -1;
 int Effects::backlightPin = -1;

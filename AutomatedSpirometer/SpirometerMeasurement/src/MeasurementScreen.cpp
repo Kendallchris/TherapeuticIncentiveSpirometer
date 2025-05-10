@@ -1,7 +1,7 @@
-#include "MeasurementScreen.h"
-#include "HomeScreen.h"
-#include "Effects.h"
-#include "UIHelpers.h"
+#include "../include/MeasurementScreen.h"
+#include "../include/HomeScreen.h"
+#include "../include/Effects.h"
+#include "../include/UIHelpers.h"
 #include <Arduino.h>
 
 extern void resetAllScreenFlags();
