@@ -2,6 +2,7 @@
 #define EFFECTS_H
 
 #include <Arduino.h>
+#include <lvgl.h>
 
 class Effects {
 public:
@@ -29,6 +30,8 @@ public:
   static void startToneSequence(std::initializer_list<ToneStep> sequence);
 
   static bool isScreenFlashing();
+
+  static void triggerConfetti(lv_obj_t *parent);
 
 private:
   // Vibration

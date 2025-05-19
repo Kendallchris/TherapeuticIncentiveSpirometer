@@ -233,3 +233,52 @@ void Effects::startToneSequence(std::initializer_list<ToneStep> sequence) {
 bool Effects::isScreenFlashing() {
   return screenFlashActive;
 }
+
+void Effects::triggerConfetti(lv_obj_t *parent) {
+  // Predefined vibrant colors
+  lv_color_t colors[] = {
+    lv_color_hex(0xFF3B30), // red
+    lv_color_hex(0xFF9500), // orange
+    lv_color_hex(0xFFCC00), // yellow
+    lv_color_hex(0x34C759), // green
+    lv_color_hex(0x007AFF), // blue
+    lv_color_hex(0x5856D6), // purple
+    lv_color_hex(0xFF2D55)  // pink
+  };
+  const int numColors = sizeof(colors) / sizeof(colors[0]);
+
+  for (int i = 0; i < 20; ++i) {
+    lv_obj_t *dot = lv_obj_create(parent);
+    lv_obj_remove_style_all(dot);
+    lv_obj_set_size(dot, 10, 10);  // Increased size
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(dot, colors[rand() % numColors], LV_PART_MAIN); // ← replaced line
+    lv_obj_set_style_border_width(dot, 1, LV_PART_MAIN);
+    lv_obj_set_style_border_color(dot, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_clear_flag(dot, LV_OBJ_FLAG_SCROLLABLE);
+
+    int start_x = rand() % (LV_HOR_RES - 10);
+    int start_y = 0 - (rand() % 20);  // Closer to top of screen
+    lv_obj_set_pos(dot, start_x, start_y);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, dot);
+    lv_anim_set_exec_cb(&a, [](void *obj, int32_t v) {
+      lv_obj_set_y((lv_obj_t *)obj, v);
+    });
+    lv_anim_set_values(&a, start_y, LV_VER_RES);
+    lv_anim_set_time(&a, 2000 + rand() % 1000);  // Slower fall
+    lv_anim_set_delay(&a, rand() % 300);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+  }
+
+  // Sanity dot to confirm rendering (always shows at top)
+  lv_obj_t *test_dot = lv_obj_create(parent);
+  lv_obj_remove_style_all(test_dot);
+  lv_obj_set_size(test_dot, 12, 12);
+  lv_obj_set_style_radius(test_dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(test_dot, lv_color_hex(0xFF0000), LV_PART_MAIN);
+  lv_obj_set_pos(test_dot, 60, 60);  // Middle of screen
+}

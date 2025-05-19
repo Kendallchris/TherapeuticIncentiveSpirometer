@@ -152,25 +152,34 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
     Effects::successTone();
   }
 
-  lv_obj_clean(lv_scr_act());
+  // Create screen
   lv_obj_t *screen = lv_obj_create(NULL);
   lv_obj_set_size(screen, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-  ui_switch_screen(screen);
+  lv_obj_set_style_bg_color(screen, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
 
-  // Build base message
+  lv_scr_load(screen);
+  lv_refr_now(NULL);
+
+  // ⏳ Trigger confetti after vibration + tone
+  lv_timer_t *confetti_timer = lv_timer_create([](lv_timer_t *timer) {
+    lv_obj_t *target_screen = (lv_obj_t *)timer->user_data;
+    Effects::triggerConfetti(target_screen);
+    lv_timer_del(timer);  // One-time use
+  }, 4000, screen);  // 4000 ms delay (3.5s vibration + 0.5s buffer)
+
+  // Success message
   char successText[128];
   snprintf(successText, sizeof(successText),
            "SUCCESS!\n%d completed.\nYou are %d%% at your hourly goal!",
            successfulMeasurements, percentageComplete);
 
-  // If it's the 10th success, add extra reminder message
   if (successfulMeasurements == 10) {
     strncat(successText,
             "\n\nGoal reached!\nPlease reset data before your next measurement\n to continue recording.",
             sizeof(successText) - strlen(successText) - 1);
   }
 
-  // "OK" button -> return home
   lv_obj_t *exit_btn = lv_btn_create(screen);
   lv_obj_set_size(exit_btn, 200, 40);
   lv_obj_align(exit_btn, LV_ALIGN_TOP_MID, 0, 10);
@@ -184,15 +193,12 @@ void MeasurementScreen::showSuccess(int successfulMeasurements, int percentageCo
   lv_obj_set_style_radius(exit_btn, 10, LV_PART_MAIN);
   lv_obj_set_style_text_color(exit_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
-  // --- Message ---
   lv_obj_t *success_label = lv_label_create(screen);
   lv_label_set_long_mode(success_label, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(success_label, 220);
   lv_label_set_text(success_label, successText);
   lv_obj_set_style_text_align(success_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_align(success_label, LV_ALIGN_CENTER, 0, 0);
-
-  lv_refr_now(NULL);
 
   showingSuccess = true;
   Serial.println("[DEBUG] Success screen active.");

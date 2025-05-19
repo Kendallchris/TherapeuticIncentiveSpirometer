@@ -15,18 +15,18 @@
 const int ledPin = 13;          // Pin for the onboard LED
 
 // CHANGE BACK FOR PCB ******************************************************************************
-// const int sensorPin = 21;       // Analog pin connected to the TCRT5000 sensor
-// const int buttonPin = 22;       // Measurement mode button (green)
-// const int resetButtonPin = 23;  // For wake-up button (red)
-// const int screenBacklightPin = 15;
-// const int vibrationMotorPin = 14;
-// const int buzzerPin = 20;        // Using PIEZO BUZZER TRANSDUCER
-const int sensorPin = 16;       // Analog pin connected to the TCRT5000 sensor
-const int buttonPin = 15;       // Measurement mode button (green)
-const int resetButtonPin = 14;  // For wake-up button (red)
-const int screenBacklightPin = 22;
-const int vibrationMotorPin = 23;
-const int buzzerPin = 9;        // Using PIEZO BUZZER TRANSDUCER
+const int sensorPin = 21;       // Analog pin connected to the TCRT5000 sensor
+const int buttonPin = 22;       // Measurement mode button (green)
+const int resetButtonPin = 23;  // For wake-up button (red)
+const int screenBacklightPin = 15;
+const int vibrationMotorPin = 14;
+const int buzzerPin = 20;        // Using PIEZO BUZZER TRANSDUCER
+// const int sensorPin = 16;       // Analog pin connected to the TCRT5000 sensor
+// const int buttonPin = 15;       // Measurement mode button (green)
+// const int resetButtonPin = 14;  // For wake-up button (red)
+// const int screenBacklightPin = 22;
+// const int vibrationMotorPin = 23;
+// const int buzzerPin = 9;        // Using PIEZO BUZZER TRANSDUCER
 
 // CHANGE BACK FOR PCB ******************************************************************************
 const int accInteruptPin = 17;  // INT1 hardware interrupt pin for accelerometer to wake from sleep
@@ -190,6 +190,13 @@ void loop() {
   if (isAsleep) {
     delay(50);
     return;
+  }
+
+  static unsigned long lastTick = 0;
+  unsigned long now = millis();
+  if (now - lastTick >= 5) {  // ~5ms granularity
+      lv_tick_inc(now - lastTick);
+      lastTick = now;
   }
 
   lv_timer_handler();
